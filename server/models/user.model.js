@@ -29,7 +29,6 @@ const userSchema = new Schema(
       type: String,
       default: "https://cdn-icons-png.flaticon.com/512/9131/9131529.png",
       trim: true,
-      default: "",
     },
     department: {
       type: String,
