@@ -64,7 +64,7 @@ const userSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "approved"],
+      enum: ["pending", "verified"],
       default: "pending",
     },
     college: {

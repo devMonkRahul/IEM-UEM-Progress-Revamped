@@ -123,10 +123,20 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     moderator.password = await bcrypt.hash(password, salt);
     moderator.tempPassword = "";
-    moderator.status = "approved"
+    moderator.status = "verified"
     await moderator.save();
 
     return sendSuccess(res, constants.OK, "Password updated successfully");
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const getModerator = expressAsyncHandler(async (req, res) => {
+  try {
+      const moderator= await Moderator.find()
+    console.log(moderator)
+    return sendSuccess(res, constants.OK, "Moderator retrieved successfully", moderator);
   } catch (error) {
     return sendServerError(res, error);
   }
