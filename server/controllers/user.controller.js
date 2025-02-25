@@ -43,7 +43,7 @@ export const createUser = expressAsyncHandler(async (req, res) => {
     const { message, messageHTML } = generatePasswordMessage(
       email,
       tempPassword,
-      "User"
+      `User, Department: ${department[0]}`
     );
 
     await sendEmail(email, "Account Credentials", message, messageHTML);

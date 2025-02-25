@@ -36,7 +36,6 @@ export function generatePasswordMessage(email, password, role) {
         <p><strong>Role:</strong> ${role}</p>
         <p><strong>Temporary Password:</strong> ${password}</p>
         <p>Please use this Temporary Password to signup for the first time. You will be required to change your password during signup.</p>
-        <p> Click 👉<a href="#">here</a> to signup and change the password.</p>
       
         <p>If you have any questions or need help, feel free to reach out to our support team.</p>
         <br>
