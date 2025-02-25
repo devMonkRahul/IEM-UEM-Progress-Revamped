@@ -15,6 +15,14 @@ export const createModerator = expressAsyncHandler(async (req, res) => {
     const { name, email, phone, department, college } = req.body;
     const tempPassword = generateRandomPassword();
 
+    if (!Array.isArray(department) || department.length === 0) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Department must be an array"
+      );
+    }
+
     if (await Moderator.findOne({ email })) {
       return sendError(res, constants.CONFLICT, "Moderator already exists");
     }

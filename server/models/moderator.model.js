@@ -36,12 +36,12 @@ const moderatorSchema = new Schema(
         required: [true, "Department is required"],
         trim: true,
     },
-    college: {
+    college: [{
         type: String,
         required: [true, "College is required"],
         enum: ["IEMN", "IEMS", "UEMJ"],
         trim: true,
-    },
+    }],
     password: {
       type: String,
       trim: true,
