@@ -123,7 +123,7 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     moderator.password = await bcrypt.hash(password, salt);
     moderator.tempPassword = "";
-    moderator.status = "verified"
+    moderator.status = "verified";
     await moderator.save();
 
     return sendSuccess(res, constants.OK, "Password updated successfully");
@@ -132,11 +132,15 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
   }
 });
 
-export const getModerator = expressAsyncHandler(async (req, res) => {
+export const getAllModerators = expressAsyncHandler(async (req, res) => {
   try {
-      const moderator= await Moderator.find()
-    console.log(moderator)
-    return sendSuccess(res, constants.OK, "Moderator retrieved successfully", moderator);
+    const moderators = await Moderator.find({});
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Moderators retrieved successfully",
+      moderators
+    );
   } catch (error) {
     return sendServerError(res, error);
   }
