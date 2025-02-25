@@ -116,7 +116,7 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
     user.tempPassword = "";
-    user.status = "approved";
+    user.status = "verified";
     await user.save();
 
     return sendSuccess(res, constants.OK, "Password updated successfully");
