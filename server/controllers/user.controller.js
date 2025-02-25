@@ -90,7 +90,7 @@ export const loginUser = expressAsyncHandler(async (req, res) => {
         res,
         constants.OK,
         "Temporary password accepted. Please change your password",
-        { accessToken, tempPassword: true }
+        { accessToken, updatePassword: true }
       );
     }
   } catch (error) {
