@@ -12,11 +12,19 @@ import { sendEmail, generatePasswordMessage } from "../utils/mailer.utils.js";
 
 export const createUser = expressAsyncHandler(async (req, res) => {
   try {
-    const { email, phone, department } = req.body;
+    const { name, email, phone, department, college } = req.body;
     const tempPassword = generateRandomPassword();
 
     if (await User.findOne({ email })) {
       return sendError(res, constants.CONFLICT, "User already exists");
+    }
+
+    if (!Array.isArray(department) || department.length === 0) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Department must be an array"
+      );
     }
 
     // Hash tempPassword before storing
@@ -24,10 +32,12 @@ export const createUser = expressAsyncHandler(async (req, res) => {
     const hashedTempPassword = await bcrypt.hash(tempPassword, salt);
 
     const user = await User.create({
+      name,
       email,
       phone,
       department,
       tempPassword: hashedTempPassword,
+      college,
     });
 
     const { message, messageHTML } = generatePasswordMessage(
@@ -106,6 +116,7 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
     user.tempPassword = "";
+    user.status = "approved";
     await user.save();
 
     return sendSuccess(res, constants.OK, "Password updated successfully");

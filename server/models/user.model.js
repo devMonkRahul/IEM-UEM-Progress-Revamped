@@ -5,6 +5,11 @@ import { config } from "../constants.js";
 
 const userSchema = new Schema(
   {
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+    },
     email: {
       type: String,
       unique: true,
@@ -24,19 +29,49 @@ const userSchema = new Schema(
     password: {
       type: String,
       trim: true,
+      default: "",
     },
     profileImage: {
       type: String,
       default: "https://cdn-icons-png.flaticon.com/512/9131/9131529.png",
       trim: true,
     },
-    department: {
-      type: String,
-      required: [true, "Department is required"],
-      trim: true,
-    },
+    department: [
+      {
+        type: String,
+        required: [true, "Department is required"],
+        trim: true,
+      },
+    ],
     tempPassword: {
       type: String,
+    },
+    totalSubmission: {
+      type: Number,
+      default: 0,
+    },
+    pendingCount: {
+      type: Number,
+      default: 0,
+    },
+    acceptedCount: {
+      type: Number,
+      default: 0,
+    },
+    rejectedCount: {
+      type: Number,
+      default: 0,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "approved"],
+      default: "pending",
+    },
+    college: {
+      type: String,
+      required: [true, "College is required"],
+      trim: true,
+      enum: ["IEMN", "IEMS", "UEMJ"],
     },
   },
   { timestamps: true }
