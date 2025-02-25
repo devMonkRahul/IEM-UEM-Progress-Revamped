@@ -4,6 +4,7 @@ import { sendServerError, sendUnauthorized } from "../utils/response.utils.js";
 import jwt from "jsonwebtoken";
 import { config } from "../constants.js";
 import User from "../models/user.model.js";
+import Moderator from "../models/moderator.model.js";
 
 export const verifySuperAdmin = expressAsyncHandler(async (req, res, next) => {
   try {
@@ -45,6 +46,28 @@ export const verifyUser = expressAsyncHandler(async (req, res, next) => {
     }
 
     req.user = user;
+    next();
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const verifyModerator = expressAsyncHandler(async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return sendUnauthorized(res, "Access denied. No token provided");
+    }
+
+    const decoded = jwt.verify(token, config.accessTokenSecret);
+    const moderator = await Moderator.findById(decoded?._id).select("-password");
+
+    if (!moderator) {
+      return sendUnauthorized(res, "Invalid token");
+    }
+
+    req.moderator = moderator;
     next();
   } catch (error) {
     return sendServerError(res, error);

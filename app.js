@@ -65,7 +65,9 @@ app.get("/logs", (req, res) => {
 // Import the routes
 import superAdminRoutes from "./server/routes/superAdmin.routes.js";
 import userRoutes from "./server/routes/user.routes.js";
+import moderatorRoutes from "./server/routes/moderator.routes.js"
 
 // Use the routes
 app.use("/api/v1/superAdmin", superAdminRoutes);
 app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/moderator", moderatorRoutes);
