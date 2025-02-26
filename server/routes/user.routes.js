@@ -3,6 +3,7 @@ import {
   createUser,
   loginUser,
   updatePassword,
+  getAllDepartments
 } from "../controllers/user.controller.js";
 import {
   verifySuperAdmin,
@@ -12,6 +13,7 @@ import {
 const router = Router();
 
 router.route("/register").post(verifySuperAdmin, createUser);
+router.route("/getAllDepartments").post(verifySuperAdmin, getAllDepartments);
 router.route("/login").post(loginUser);
 router.route("/updatePassword").post(verifyUser, updatePassword);
 
