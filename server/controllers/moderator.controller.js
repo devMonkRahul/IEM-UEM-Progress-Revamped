@@ -123,7 +123,7 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     moderator.password = await bcrypt.hash(password, salt);
     moderator.tempPassword = "";
-    moderator.status = "approved"
+    moderator.status = "verified";
     await moderator.save();
 
     return sendSuccess(res, constants.OK, "Password updated successfully");
@@ -131,50 +131,3 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
     return sendServerError(res, error);
   }
 });
-
-export const deleteModerator = expressAsyncHandler(async (req, res) => {
-  try {
-    const { moderatorId } = req.params;
-    if (!moderatorId) {
-      return sendError(res, constants.VALIDATION_ERROR, "Moderator ID is required");
-    }
-
-    const moderator = await Moderator.findById(moderatorId);
-    if (!moderator) {
-      return sendError(res, constants.NOT_FOUND, "Moderator not found");
-    }
-
-    await Moderator.findByIdAndDelete(moderatorId);
-    sendSuccess(res, constants.OK, "Moderator deleted successfully");
-  } catch (error) {
-    return sendServerError(res, error);
-  }
-});
-
-export const updateModerator = expressAsyncHandler(async (req, res) => {
-  try {
-    const { moderatorId } = req.params;
-    const { name, email, phone, department, college } = req.body;
-
-    if (!moderatorId) {
-      return sendError(res, constants.VALIDATION_ERROR, "Moderator ID is required");
-    }
-
-    const moderator = await Moderator.findById(moderatorId);
-    if (!moderator) {
-      return sendError(res, constants.NOT_FOUND, "Moderator not found");
-    }
-
-    const updatedModerator = await Moderator.findByIdAndUpdate(
-      moderatorId,
-      { name, email, phone, department, college },
-      { new: true, runValidators: true }
-    );
-
-    sendSuccess(res, constants.OK, "Moderator updated successfully", updatedModerator);
-  } catch (error) {
-    return sendServerError(res, error);
-  }
-});
-
-
