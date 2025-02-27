@@ -138,6 +138,9 @@ export const updateUserDetails = expressAsyncHandler(async (req, res) => {
   try {
     const { name, email, phone, department, college } = req.body;
     const userId = req.params.userId;
+    if (!userId) {
+      return sendError(res, constants.VALIDATION_ERROR, "User ID is required");
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -163,7 +166,11 @@ export const updateUserDetails = expressAsyncHandler(async (req, res) => {
 
 export const deleteUser = expressAsyncHandler(async (req, res) => {
   try {
-    const deletedUser = await User.findByIdAndDelete(req.params.userId);
+    const userId = req.params.userId;
+    if (!userId) {
+      return sendError(res, constants.VALIDATION_ERROR, "User ID is required");
+    }
+    const deletedUser = await User.findByIdAndDelete(userId);
     return sendSuccess(res, constants.OK, "User deleted successfully");
   } catch (error) {
     return sendServerError(res, error);
