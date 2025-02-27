@@ -19,8 +19,8 @@ router.route("/getAllDepartments").post(verifySuperAdmin, getAllDepartments);
 router.route("/login").post(loginUser);
 router.route("/updatePassword").post(verifyUser, updatePassword);
 router
-  .route("/updateUserDetails/:id")
+  .route("/updateUserDetails/:userId")
   .post(verifySuperAdmin, updateUserDetails);
-router.route("/deleteUser/:id").post(verifySuperAdmin, deleteUser);
+router.route("/deleteUser/:userId").post(verifySuperAdmin, deleteUser);
 
 export default router;

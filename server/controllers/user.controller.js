@@ -137,7 +137,7 @@ export const getAllDepartments = expressAsyncHandler(async (req, res) => {
 export const updateUserDetails = expressAsyncHandler(async (req, res) => {
   try {
     const { name, email, phone, department, college } = req.body;
-    const userId = req.params.id;
+    const userId = req.params.userId;
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -163,7 +163,7 @@ export const updateUserDetails = expressAsyncHandler(async (req, res) => {
 
 export const deleteUser = expressAsyncHandler(async (req, res) => {
   try {
-    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    const deletedUser = await User.findByIdAndDelete(req.params.userId);
     return sendSuccess(res, constants.OK, "User deleted successfully");
   } catch (error) {
     return sendServerError(res, error);
