@@ -131,3 +131,62 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
     return sendServerError(res, error);
   }
 });
+
+export const getAllModerators = expressAsyncHandler(async (req, res) => {
+  try {
+    const moderators = await Moderator.find({});
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Moderators retrieved successfully",
+      moderators
+    );
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const deleteModerator = expressAsyncHandler(async (req, res) => {
+  try {
+    const { moderatorId } = req.params;
+    if (!moderatorId) {
+      return sendError(res, constants.VALIDATION_ERROR, "Moderator ID is required");
+    }
+
+    const moderator = await Moderator.findById(moderatorId);
+    if (!moderator) {
+      return sendError(res, constants.NOT_FOUND, "Moderator not found");
+    }
+
+    await Moderator.findByIdAndDelete(moderatorId);
+    sendSuccess(res, constants.OK, "Moderator deleted successfully");
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const updateModerator = expressAsyncHandler(async (req, res) => {
+  try {
+    const { moderatorId } = req.params;
+    const { name, email, phone, department, college } = req.body;
+
+    if (!moderatorId) {
+      return sendError(res, constants.VALIDATION_ERROR, "Moderator ID is required");
+    }
+
+    const moderator = await Moderator.findById(moderatorId);
+    if (!moderator) {
+      return sendError(res, constants.NOT_FOUND, "Moderator not found");
+    }
+
+    const updatedModerator = await Moderator.findByIdAndUpdate(
+      moderatorId,
+      { name, email, phone, department, college },
+      { new: true, runValidators: true }
+    );
+
+    sendSuccess(res, constants.OK, "Moderator updated successfully", updatedModerator);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
