@@ -23,7 +23,7 @@ export const createUser = expressAsyncHandler(async (req, res) => {
       return sendError(
         res,
         constants.VALIDATION_ERROR,
-        "Department must be an array"
+        "Department must be an array",
       );
     }
 
@@ -43,7 +43,7 @@ export const createUser = expressAsyncHandler(async (req, res) => {
     const { message, messageHTML } = generatePasswordMessage(
       email,
       tempPassword,
-      `User, Department: ${department[0]}`
+      `User, Department: ${department[0]}`,
     );
 
     await sendEmail(email, "Account Credentials", message, messageHTML);
@@ -51,7 +51,7 @@ export const createUser = expressAsyncHandler(async (req, res) => {
       res,
       constants.OK,
       "User created successfully. Check your email for login credentials",
-      user
+      user,
     );
   } catch (error) {
     console.error("Error creating user: ", error);
@@ -67,7 +67,7 @@ export const loginUser = expressAsyncHandler(async (req, res) => {
       return sendError(
         res,
         constants.VALIDATION_ERROR,
-        "Please fill all the fields"
+        "Please fill all the fields",
       );
     }
 
@@ -91,7 +91,7 @@ export const loginUser = expressAsyncHandler(async (req, res) => {
         return sendError(
           res,
           constants.UNAUTHORIZED,
-          "Invalid temporary password"
+          "Invalid temporary password",
         );
       }
 
@@ -100,7 +100,7 @@ export const loginUser = expressAsyncHandler(async (req, res) => {
         res,
         constants.OK,
         "Temporary password accepted. Please change your password",
-        { accessToken, updatePassword: true }
+        { accessToken, updatePassword: true },
       );
     }
   } catch (error) {
@@ -128,12 +128,43 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
 export const getAllDepartments = expressAsyncHandler(async (req, res) => {
   try {
     const users = await User.find({});
+    return sendSuccess(res, constants.OK, "User retrieved successfully", users);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const updateUserDetails = expressAsyncHandler(async (req, res) => {
+  try {
+    const { name, email, phone, department, college } = req.body;
+    const userId = req.params.id;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        name,
+        email,
+        phone,
+        department,
+        college,
+      },
+      { new: true, validateBeforeSave: true },
+    );
     return sendSuccess(
       res,
       constants.OK,
-      "User retrieved successfully",
-      users
+      "User updated successfully",
+      updatedUser,
     );
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const deleteUser = expressAsyncHandler(async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    return sendSuccess(res, constants.OK, "User deleted successfully");
   } catch (error) {
     return sendServerError(res, error);
   }
