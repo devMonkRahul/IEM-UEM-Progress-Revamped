@@ -127,7 +127,11 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
 
 export const getAllDepartments = expressAsyncHandler(async (req, res) => {
   try {
-    const users = await User.find({});
+    const users = await User.find({}).select("-password -tempPassword");
+
+    if (!users || users.length === 0) {
+      return sendSuccess(res, constants.OK, "No departments found", []);
+    }
     return sendSuccess(res, constants.OK, "User retrieved successfully", users);
   } catch (error) {
     return sendServerError(res, error);

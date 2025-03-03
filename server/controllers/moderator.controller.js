@@ -134,7 +134,12 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
 
 export const getAllModerators = expressAsyncHandler(async (req, res) => {
   try {
-    const moderators = await Moderator.find({});
+    const moderators = await Moderator.find({}).select("-password -tempPassword");
+
+    if (!moderators || moderators.length === 0) {
+      return sendSuccess(res, constants.OK, "No moderators found", []);
+    }
+
     return sendSuccess(
       res,
       constants.OK,
