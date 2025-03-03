@@ -67,9 +67,11 @@ import superAdminRoutes from "./server/routes/superAdmin.routes.js";
 import userRoutes from "./server/routes/user.routes.js";
 import moderatorRoutes from "./server/routes/moderator.routes.js"
 import dynamicSchemaRoutes from "./server/routes/dynamicSchema.routes.js";
+import documentRoutes from "./server/routes/document.routes.js";
 
 // Use the routes
 app.use("/api/v1/superAdmin", superAdminRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/moderator", moderatorRoutes);
 app.use("/api/v1/dynamicSchema", dynamicSchemaRoutes);
+app.use("/api/v1/document", documentRoutes);
