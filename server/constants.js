@@ -73,4 +73,5 @@ export const config = {
     awsSecretAccessKey: String(process.env.AWS_SECRET_ACCESS_KEY),
     awsRegion: String(process.env.AWS_REGION),
     awsBucketName: String(process.env.AWS_BUCKET_NAME),
+    databaseAccessKey: String(process.env.DATABASE_ACCESS_KEY),
 }
