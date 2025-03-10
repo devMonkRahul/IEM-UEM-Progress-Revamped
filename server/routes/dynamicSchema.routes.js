@@ -5,9 +5,9 @@ import { verifySuperAdmin } from "../middlewares/auth.middleware.js";
 const router = Router();
 
 router.route("/createDocument").post(verifySuperAdmin, createSchema);
-router.route("/getAllDocuments").post(verifySuperAdmin, getAllSchemas);
-router.route("/getDocument/:schemaId").post(verifySuperAdmin, getSchemaById);
-router.route("/updateDocument/:schemaId").post(verifySuperAdmin, updateSchema);
-router.route("/deleteDocument/:schemaId").post(verifySuperAdmin, deleteSchema);
+router.route("/getAllDocumentSchema").post(verifySuperAdmin, getAllSchemas);
+router.route("/getDocumentSchemaById/:schemaId").post(verifySuperAdmin, getSchemaById);
+router.route("/updateDocumentSchema/:schemaId").post(verifySuperAdmin, updateSchema);
+router.route("/deleteDocumentSchema/:schemaId").post(verifySuperAdmin, deleteSchema);
 
 export default router;
