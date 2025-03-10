@@ -6,6 +6,7 @@ import {
   sendError,
   sendServerError,
 } from "../utils/response.utils.js";
+import TableSchema from "../models/tableSchema.model.js";
 
 export const createSchema = expressAsyncHandler(async (req, res) => {
   try {
@@ -59,6 +60,12 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
 
     // Delete test data
     await DynamicModel.findByIdAndDelete(testData._id);
+
+    // Save Schema Definition
+    await TableSchema.create({
+      tableName: sanitizedTableName,
+      tableFields: data,
+    });
 
     return sendSuccess(
       res,
