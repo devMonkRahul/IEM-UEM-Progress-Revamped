@@ -125,6 +125,14 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
   }
 });
 
+export const getUserProfile = expressAsyncHandler(async (req, res) => {
+  try {
+    return sendSuccess(res, constants.OK, "User profile fetched successfully", req.user);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
 export const getAllDepartments = expressAsyncHandler(async (req, res) => {
   try {
     const users = await User.find({}).select("-password -tempPassword");

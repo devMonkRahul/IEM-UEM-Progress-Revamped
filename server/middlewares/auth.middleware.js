@@ -73,3 +73,50 @@ export const verifyModerator = expressAsyncHandler(async (req, res, next) => {
     return sendServerError(res, error);
   }
 });
+
+export const verifyLogin = expressAsyncHandler(async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return sendUnauthorized(res, "Access denied. No token provided");
+    }
+
+    const decoded = jwt.verify(token, config.accessTokenSecret);
+
+    if (!decoded) {
+      return sendUnauthorized(res, "Invalid Access token");
+    }
+
+    if (decoded?.role === "user") {
+      const user = await User.findById(decoded?._id).select("-password");
+      if (!user) {
+        return sendUnauthorized(res, "Invalid token");
+      }
+  
+      req.user = user;
+      next();
+    } else if (decoded?.role === "moderator") {
+      const moderator = await Moderator.findById(decoded?._id).select("-password");
+      if (!moderator) {
+        return sendUnauthorized(res, "Invalid token");
+      }
+  
+      req.moderator = moderator;
+      next();
+    } else {
+      const superAdmin = await SuperAdmin.findById(decoded?._id).select(
+        "-password"
+      );
+      if (!superAdmin) {
+        return sendUnauthorized(res, "Invalid token");
+      }
+  
+      req.superAdmin = superAdmin;
+      next();
+    }
+
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});

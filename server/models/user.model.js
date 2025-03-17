@@ -87,7 +87,7 @@ userSchema.methods.isTempPasswordCorrect = async function (tempPassword) {
 
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-    { _id: this._id, email: this.email },
+    { _id: this._id, email: this.email, role: "user" },
     config.accessTokenSecret,
     {
       expiresIn: config.accessTokenExpiry || "1d",

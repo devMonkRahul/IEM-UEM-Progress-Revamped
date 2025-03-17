@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import { config } from "../constants.js";
 
-const connectDB = async () => {
+const connectDB = async () => { 
     try {
-        await mongoose.connect(`${config.uri}`);
+        await mongoose.connect(config.uri);
         console.log("MongoDB connection SUCCESS");
     } catch (error) {
         console.error(`Error: ${error.message}`);

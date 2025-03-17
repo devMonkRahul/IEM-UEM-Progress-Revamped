@@ -18,7 +18,7 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
 
     // Sanitize table name (replace spaces with underscores)
     const sanitizedTableName = tableName.replace(/\s+/g, "_");
-
+    
     // Check if model already exists
     if (mongoose.models[sanitizedTableName]) {
       return sendError(res, constants.CONFLICT, "Model already exists");
@@ -41,6 +41,22 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
         unique: field.FieldUnique === "True",
       };
     });
+
+    schemaDefinition["status"] = {
+      type: String,
+      default: "pending",
+      enum: ["pending", "approved", "rejected", "requestedForApproval", "requestedForRejection"],
+    }
+
+    schemaDefinition["submitted"] = {
+      type: Boolean,
+      default: false,
+    }
+
+    schemaDefinition["submittedBy"] = {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }
 
     // Create Mongoose Schema
     const dynamicSchema = new mongoose.Schema(schemaDefinition, {
