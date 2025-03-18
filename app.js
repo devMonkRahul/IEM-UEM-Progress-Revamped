@@ -4,7 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import path from "path";
 import fs from "fs";
-import connectDB from "./server/config/db.config.js";
+import initializeDatabase from "./server/config/db.config.js";
 import { config } from "./server/constants.js";
 
 const app = express();
@@ -27,7 +27,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(helmet());
 
-connectDB()
+initializeDatabase()
     .then(() => {
         app.listen(config.port, () => console.log(`Server running on port ${config.port}`));
         app.on("error", (error) => {
@@ -68,6 +68,7 @@ import userRoutes from "./server/routes/user.routes.js";
 import moderatorRoutes from "./server/routes/moderator.routes.js"
 import dynamicSchemaRoutes from "./server/routes/dynamicSchema.routes.js";
 import documentRoutes from "./server/routes/document.routes.js";
+
 
 // Use the routes
 app.use("/api/v1/superAdmin", superAdminRoutes);

@@ -6,7 +6,7 @@ import {
   sendError,
   sendServerError,
 } from "../utils/response.utils.js";
-import TableSchema from "../models/tableSchema.model.js";
+import SchemaMeta from "../models/tableSchema.model.js";
 
 export const createSchema = expressAsyncHandler(async (req, res) => {
   try {
@@ -17,70 +17,97 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
     }
 
     // Sanitize table name (replace spaces with underscores)
-    const sanitizedTableName = tableName.replace(/\s+/g, "_");
-    
+    const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+
+    console.log(mongoose.modelNames()); // Debugging: See all existing models
+
     // Check if model already exists
-    if (mongoose.models[sanitizedTableName]) {
+    if (mongoose.modelNames().includes(sanitizedTableName)) {
       return sendError(res, constants.CONFLICT, "Model already exists");
     }
 
-    // Convert field types to Mongoose types
+    // Convert field types to Mongoose types (Stored as Strings)
     const typeMapping = {
-      Text: String,
-      Number: Number,
-      Email: String,
-      File: String, // Store file path or URL
+      Text: "String",
+      Number: "Number",
+      Email: "String",
+      File: "String", // Store file path or URL
     };
 
     const schemaDefinition = {};
 
     data.forEach((field) => {
       schemaDefinition[field.FieldName] = {
-        type: typeMapping[field.FieldType] || String, // Default to String if unknown
-        required: field.FieldRequired === "True",
-        unique: field.FieldUnique === "True",
+        type: typeMapping[field.FieldType] || "String", // Default to String if unknown
       };
+
+      // Add required only if it's true
+      if (field.FieldRequired === "True") {
+        schemaDefinition[field.FieldName].required = true;
+      }
+
+      // Add unique only if it's true
+      if (field.FieldUnique === "True") {
+        schemaDefinition[field.FieldName].unique = true;
+      }
     });
 
+    // Add system fields (with correct format)
     schemaDefinition["status"] = {
-      type: String,
+      type: "String",
       default: "pending",
-      enum: ["pending", "approved", "rejected", "requestedForApproval", "requestedForRejection"],
-    }
+      enum: [
+        "pending",
+        "approved",
+        "rejected",
+        "requestedForApproval",
+        "requestedForRejection",
+      ],
+    };
 
     schemaDefinition["submitted"] = {
-      type: Boolean,
+      type: "Boolean",
       default: false,
-    }
+    };
 
     schemaDefinition["submittedBy"] = {
-      type: mongoose.Schema.Types.ObjectId,
+      type: "ObjectId", // Store as string instead of Mongoose's `Schema.Types.ObjectId`
       ref: "User",
-    }
+    };
 
-    // Create Mongoose Schema
-    const dynamicSchema = new mongoose.Schema(schemaDefinition, {
+    console.log("Formatted Schema:", schemaDefinition);
+
+    // Create and register the Mongoose Schema dynamically
+    const mongooseSchemaDefinition = {};
+    Object.keys(schemaDefinition).forEach((key) => {
+      let field = schemaDefinition[key];
+      let newField = { ...field };
+
+      // Convert type strings back to Mongoose Types
+      const typeConversion = {
+        String: String,
+        Number: Number,
+        Boolean: Boolean,
+        ObjectId: mongoose.Schema.Types.ObjectId,
+      };
+
+      if (typeof field.type === "string" && typeConversion[field.type]) {
+        newField.type = typeConversion[field.type];
+      }
+
+      mongooseSchemaDefinition[key] = newField;
+    });
+
+    const dynamicSchema = new mongoose.Schema(mongooseSchemaDefinition, {
       timestamps: true,
     });
 
-    // Create Mongoose Model
-    const DynamicModel = mongoose.model(sanitizedTableName, dynamicSchema);
+    mongoose.model(sanitizedTableName, dynamicSchema);
 
-    // Save Schema Reference (Optional)
-    const testData = await DynamicModel.create({
-      Name: "Kunal",
-      Email: "kunal@example.com",
-      Age: 25,
-      Pdf: "path/to/file.pdf",
-    });
-
-    // Delete test data
-    await DynamicModel.findByIdAndDelete(testData._id);
-
-    // Save Schema Definition
-    await TableSchema.create({
+    // Save SchemaMeta Reference (in correct format)
+    await SchemaMeta.create({
       tableName: sanitizedTableName,
-      tableFields: data,
+      schemaDefinition, // This is now in JSON format as required
     });
 
     return sendSuccess(
@@ -93,6 +120,7 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
     return sendServerError(res, error);
   }
 });
+
 
 export const getAllSchemas = expressAsyncHandler(async (req, res) => {
   try {
@@ -135,7 +163,11 @@ export const deleteSchema = expressAsyncHandler(async (req, res) => {
     const { accessKey } = req.body;
 
     if (!accessKey || accessKey !== config.databaseAccessKey) {
-      return sendError(res, constants.UNAUTHORIZED, "Access Denied, Valid Access Key Required");
+      return sendError(
+        res,
+        constants.UNAUTHORIZED,
+        "Access Denied, Valid Access Key Required"
+      );
     }
 
     if (!schemaId) {
@@ -164,7 +196,11 @@ export const updateSchema = expressAsyncHandler(async (req, res) => {
     const { tableName, data, accessKey } = req.body;
 
     if (!accessKey || accessKey !== config.databaseAccessKey) {
-      return sendError(res, constants.UNAUTHORIZED, "Access Denied, Valid Access Key Required");
+      return sendError(
+        res,
+        constants.UNAUTHORIZED,
+        "Access Denied, Valid Access Key Required"
+      );
     }
 
     if (
@@ -190,7 +226,12 @@ export const updateSchema = expressAsyncHandler(async (req, res) => {
       tableFields: data,
     });
 
-    return sendSuccess(res, constants.OK, "Schema updated successfully", updatedTable);
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Schema updated successfully",
+      updatedTable
+    );
   } catch (error) {
     return sendServerError(res, error);
   }

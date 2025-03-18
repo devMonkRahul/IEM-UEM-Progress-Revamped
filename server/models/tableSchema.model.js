@@ -1,35 +1,10 @@
-import mongoose, { Schema } from "mongoose";
+import { Schema, model } from "mongoose";
 
-const tableSchema = new Schema({
-    tableName: {
-        type: String,
-        required: true
-    },
-    tableFields: [{
-        FieldName: {
-            type: String,
-        },
-        FieldType: {
-            type: String,
-        },
-        FieldSize: {
-            type: String,
-        },
-        FieldRequired: {
-            type: String,
-        },
-        FieldUnique: {
-            type: String,
-        },
-        Placeholder: {
-            type: String,
-        },
-        Value : {
-            type: String,
-        },
-    }]
+const schemaMetaSchema = new Schema({
+  tableName: { type: String, required: true, unique: true },
+  schemaDefinition: { type: Object, required: true },
 });
 
-const TableSchema = mongoose.model("TableSchema", tableSchema);
+const SchemaMeta = model("SchemaMeta", schemaMetaSchema);
 
-export default TableSchema;
+export default SchemaMeta;
