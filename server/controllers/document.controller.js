@@ -17,7 +17,6 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
     
         // Sanitize table name (replace spaces with underscores)
         const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
-        console.log(sanitizedTableName);
         
         const DynamicModel = mongoose.models[sanitizedTableName];
         
