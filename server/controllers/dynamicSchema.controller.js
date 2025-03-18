@@ -159,9 +159,9 @@ export const getSchemaById = expressAsyncHandler(async (req, res) => {
 export const deleteSchema = expressAsyncHandler(async (req, res) => {
   try {
     const { schemaId } = req.params;
-
     const { accessKey } = req.body;
 
+    // Validate access key
     if (!accessKey || accessKey !== config.databaseAccessKey) {
       return sendError(
         res,
@@ -174,21 +174,34 @@ export const deleteSchema = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Invalid Schema ID");
     }
 
-    const schema = await TableSchema.findByIdAndDelete(schemaId);
-
+    // Find and delete schema from SchemaMeta
+    const schema = await SchemaMeta.findByIdAndDelete(schemaId);
     if (!schema) {
       return sendError(res, constants.NO_CONTENT, "Schema not found");
     }
 
-    // Delete Mongoose Model
-    const sanitizedTableName = schema.tableName.replace(/\s+/g, "_");
-    delete mongoose.models[sanitizedTableName];
+    // Convert table name to lowercase (as done in createSchema)
+    const sanitizedTableName = schema.tableName.replace(/\s+/g, "_").toLowerCase();
+
+    // Delete Mongoose Schema
+  
+
+    // Completely remove Mongoose Model
+    if (mongoose.models[sanitizedTableName]) {
+      await mongoose.models[sanitizedTableName].deleteMany();
+      delete mongoose.models[sanitizedTableName]; // Remove from models
+    }
+    if (mongoose.connection.models[sanitizedTableName]) {
+      delete mongoose.connection.models[sanitizedTableName]; // Remove from connection cache
+    }
+    
 
     return sendSuccess(res, constants.OK, "Schema deleted successfully");
   } catch (error) {
     return sendServerError(res, error);
   }
 });
+
 
 export const updateSchema = expressAsyncHandler(async (req, res) => {
   try {
