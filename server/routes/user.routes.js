@@ -11,13 +11,14 @@ import {
 import {
   verifySuperAdmin,
   verifyUser,
+  verifyLogin,
 } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
 router.route("/register").post(verifySuperAdmin, createUser);
 router.route("/profile").post(verifyUser, getUserProfile);
-router.route("/getAllDepartments").post(verifySuperAdmin, getAllDepartments);
+router.route("/getAllDepartments").post(verifyLogin, getAllDepartments);
 router.route("/login").post(loginUser);
 router.route("/updatePassword").post(verifyUser, updatePassword);
 router

@@ -52,7 +52,7 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
             return sendError(res, constants.VALIDATION_ERROR, "Model not found");
         }
     
-        const documents = await DynamicModel.find({ userId: req.user._id });
+        const documents = await DynamicModel.find({ submittedBy: req.user._id });
 
         return sendSuccess(res, constants.OK, "Documents retrieved successfully", documents);
     } catch (error) {
