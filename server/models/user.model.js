@@ -36,13 +36,11 @@ const userSchema = new Schema(
       default: "https://cdn-icons-png.flaticon.com/512/9131/9131529.png",
       trim: true,
     },
-    department: [
-      {
-        type: String,
-        required: [true, "Department is required"],
-        trim: true,
-      },
-    ],
+    department: {
+      type: String,
+      required: [true, "Department is required"],
+      trim: true,
+    },
     tempPassword: {
       type: String,
     },

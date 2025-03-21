@@ -37,18 +37,22 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
     const schemaDefinition = {};
 
     data.forEach((field) => {
-      schemaDefinition[field.FieldName] = {
-        type: typeMapping[field.FieldType] || "String", // Default to String if unknown
-      };
+      const fieldName = field.FieldName?.trim();
+      if (fieldName) {
+        const sanitizedFieldName = fieldName.replace(/\s+/g, "_")?.toLowerCase();
+        schemaDefinition[sanitizedFieldName] = {
+          type: typeMapping[field.FieldType] || "String", // Default to String if unknown
+        };
 
-      // Add required only if it's true
-      if (field.FieldRequired === "True") {
-        schemaDefinition[field.FieldName].required = true;
-      }
+        // Add required only if it's true
+        if (field.FieldRequired === "true") {
+          schemaDefinition[sanitizedFieldName].required = true;
+        }
 
-      // Add unique only if it's true
-      if (field.FieldUnique === "True") {
-        schemaDefinition[field.FieldName].unique = true;
+        // Add unique only if it's true
+        if (field.FieldUnique === "true") {
+          schemaDefinition[sanitizedFieldName].unique = true;
+        }
       }
     });
 
@@ -73,6 +77,27 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
     schemaDefinition["submittedBy"] = {
       type: "ObjectId", // Store as string instead of Mongoose's `Schema.Types.ObjectId`
       ref: "User",
+    };
+
+    if (!schemaDefinition["college"]) {
+      schemaDefinition["college"] = {
+        type: "String",
+      }
+    }
+
+    if (!schemaDefinition["department"]) {
+      schemaDefinition["department"] = {
+        type: "String",
+      }
+    }
+
+    schemaDefinition["moderatorComment"] = {
+      type: "String",
+      default: "",
+    };
+    schemaDefinition["superAdminComment"] = {
+      type: "String",
+      default: "",
     };
 
     // Create and register the Mongoose Schema dynamically
