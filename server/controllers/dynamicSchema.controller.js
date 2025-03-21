@@ -7,6 +7,7 @@ import {
   sendServerError,
 } from "../utils/response.utils.js";
 import SchemaMeta from "../models/tableSchema.model.js";
+import RawSchemaMeta from "../models/rawTableSchema.model.js";
 
 export const createSchema = expressAsyncHandler(async (req, res) => {
   try {
@@ -35,6 +36,7 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
     };
 
     const schemaDefinition = {};
+    const rawSchemaDefinition = {};
 
     data.forEach((field) => {
       const fieldName = field.FieldName?.trim();
@@ -44,14 +46,25 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
           type: typeMapping[field.FieldType] || "String", // Default to String if unknown
         };
 
+        rawSchemaDefinition[sanitizedFieldName] = {
+          type: field.FieldType,
+        }
+
+        if (field.placeholder.trim() !== "") {
+          schemaDefinition[sanitizedFieldName].default = field.placeholder;
+          rawSchemaDefinition[sanitizedFieldName].placeholder = field.placeholder;
+        }
+
         // Add required only if it's true
         if (field.FieldRequired === "true") {
           schemaDefinition[sanitizedFieldName].required = true;
+          rawSchemaDefinition[sanitizedFieldName].required = true;
         }
 
         // Add unique only if it's true
         if (field.FieldUnique === "true") {
           schemaDefinition[sanitizedFieldName].unique = true;
+          rawSchemaDefinition[sanitizedFieldName].unique = true;
         }
       }
     });
@@ -131,6 +144,11 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
     await SchemaMeta.create({
       tableName: sanitizedTableName,
       schemaDefinition, // This is now in JSON format as required
+    });
+
+    await RawSchemaMeta.create({
+      tableName: sanitizedTableName,
+      schemaDefinition: rawSchemaDefinition,
     });
 
     return sendSuccess(
