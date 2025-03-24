@@ -108,6 +108,7 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
       type: "String",
       default: "",
     };
+
     schemaDefinition["superAdminComment"] = {
       type: "String",
       default: "",
@@ -141,7 +142,7 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
     mongoose.model(sanitizedTableName, dynamicSchema);
 
     // Save SchemaMeta Reference (in correct format)
-    await SchemaMeta.create({
+    const schema = await SchemaMeta.create({
       tableName: sanitizedTableName,
       schemaDefinition, // This is now in JSON format as required
     });
@@ -149,6 +150,7 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
     await RawSchemaMeta.create({
       tableName: sanitizedTableName,
       schemaDefinition: rawSchemaDefinition,
+      schemaId: schema._id,
     });
 
     return sendSuccess(
@@ -164,7 +166,7 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
 
 export const getAllSchemas = expressAsyncHandler(async (req, res) => {
   try {
-    const schemas = await SchemaMeta.find();
+    const schemas = await RawSchemaMeta.find();
 
     if (!schemas || schemas.length === 0) {
       return sendSuccess(res, constants.OK, "No Schemas found", []);
@@ -215,10 +217,12 @@ export const deleteSchema = expressAsyncHandler(async (req, res) => {
     }
 
     // Find and delete schema from SchemaMeta
-    const schema = await SchemaMeta.findByIdAndDelete(schemaId);
+    const schema = await RawSchemaMeta.findByIdAndDelete(schemaId);
     if (!schema) {
       return sendError(res, constants.NO_CONTENT, "Schema not found");
     }
+
+    await SchemaMeta.findByIdAndDelete(schema.schemaId);
 
     // Convert table name to lowercase (as done in createSchema)
     const sanitizedTableName = schema.tableName
@@ -263,7 +267,7 @@ export const updateSchema = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Invalid request Data");
     }
 
-    const schema = await SchemaMeta.findById(schemaId);
+    const schema = await RawSchemaMeta.findById(schemaId);
 
     if (!schema) {
       return sendError(res, constants.NO_CONTENT, "Schema not found");
@@ -297,21 +301,37 @@ export const updateSchema = expressAsyncHandler(async (req, res) => {
     };
 
     const schemaDefinition = {};
+    const rawSchemaDefinition = {};
 
     data.forEach((field) => {
-      schemaDefinition[field.FieldName] = {
+      const fieldName = field.FieldName?.trim();
+      if (fieldName) {
+        const sanitizedFieldName = fieldName.replace(/\s+/g, "_")?.toLowerCase();
+      schemaDefinition[sanitizedFieldName] = {
         type: typeMapping[field.FieldType] || "String", // Default to String if unknown
       };
 
+      rawSchemaDefinition[sanitizedFieldName] = {
+        type: field.FieldType,
+      }
+
+      if (field.placeholder.trim() !== "") {
+        schemaDefinition[sanitizedFieldName].default = field.placeholder;
+        rawSchemaDefinition[sanitizedFieldName].placeholder = field.placeholder;
+      }
+
       // Add required only if it's true
-      if (field.FieldRequired === "True") {
-        schemaDefinition[field.FieldName].required = true;
+      if (field.FieldRequired === "true") {
+        schemaDefinition[sanitizedFieldName].required = true;
+        rawSchemaDefinition[sanitizedFieldName].required = true;
       }
 
       // Add unique only if it's true
-      if (field.FieldUnique === "True") {
-        schemaDefinition[field.FieldName].unique = true;
+      if (field.FieldUnique === "true") {
+        schemaDefinition[sanitizedFieldName].unique = true;
+        rawSchemaDefinition[sanitizedFieldName].unique = true;
       }
+    }
     });
 
     // Add system fields (with correct format)
@@ -335,6 +355,28 @@ export const updateSchema = expressAsyncHandler(async (req, res) => {
     schemaDefinition["submittedBy"] = {
       type: "ObjectId", // Store as string instead of Mongoose's `Schema.Types.ObjectId`
       ref: "User",
+    };
+
+    if (!schemaDefinition["college"]) {
+      schemaDefinition["college"] = {
+        type: "String",
+      }
+    }
+
+    if (!schemaDefinition["department"]) {
+      schemaDefinition["department"] = {
+        type: "String",
+      }
+    }
+
+    schemaDefinition["moderatorComment"] = {
+      type: "String",
+      default: "",
+    };
+
+    schemaDefinition["superAdminComment"] = {
+      type: "String",
+      default: "",
     };
 
     // Create and register the Mongoose Schema dynamically
@@ -370,8 +412,8 @@ export const updateSchema = expressAsyncHandler(async (req, res) => {
 
     console.log(mongoose.modelNames()); // Debugging: See all existing models
 
-    const updatedTable = await SchemaMeta.findByIdAndUpdate(
-      schemaId,
+    await SchemaMeta.findByIdAndUpdate(
+      schema.schemaId,
       {
         tableName: sanitizedUpdateTableName,
         schemaDefinition, // This is now in JSON format as required
@@ -379,7 +421,16 @@ export const updateSchema = expressAsyncHandler(async (req, res) => {
       { new: true }
     );
 
-    if (!updatedTable) {
+    const updatedRawTable = await RawSchemaMeta.findByIdAndUpdate(
+      schemaId,
+      {
+        tableName: sanitizedUpdateTableName,
+        schemaDefinition: rawSchemaDefinition,
+      },
+      { new: true }
+    );
+
+    if (!updatedRawTable) {
       return sendError(res, constants.NO_CONTENT, "Schema not found");
     }
 
@@ -387,7 +438,7 @@ export const updateSchema = expressAsyncHandler(async (req, res) => {
       res,
       constants.OK,
       "Schema updated successfully",
-      updatedTable
+      updatedRawTable
     );
   } catch (error) {
     return sendServerError(res, error);
