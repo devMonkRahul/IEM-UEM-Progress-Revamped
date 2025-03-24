@@ -9,7 +9,9 @@ import {
 import bcrypt from "bcrypt";
 import { generateRandomPassword } from "../utils/generateRandomPassword.utils.js";
 import { sendEmail, generatePasswordMessage } from "../utils/mailer.utils.js";
+import { config } from "dotenv";
 
+config({ path: "./.env" });
 export const createUser = expressAsyncHandler(async (req, res) => {
   try {
     const { name, email, phone, department, college } = req.body;
