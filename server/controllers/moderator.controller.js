@@ -195,3 +195,11 @@ export const updateModerator = expressAsyncHandler(async (req, res) => {
     return sendServerError(res, error);
   }
 });
+
+export const profile = expressAsyncHandler(async (req, res) => {
+  try {
+    return sendSuccess(res, constants.OK, "Moderator profile retrieved successfully", req.moderator);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});

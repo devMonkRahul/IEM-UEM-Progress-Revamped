@@ -5,7 +5,8 @@ import {
   updatePassword,
   getAllModerators,
   deleteModerator,
-  updateModerator
+  updateModerator,
+  profile,
 } from "../controllers/moderator.controller.js";
 import {
   verifySuperAdmin,
@@ -15,6 +16,7 @@ import {
 const router = Router();
 
 router.route("/register").post(verifySuperAdmin, createModerator);
+router.route("/profile").post(verifyModerator, profile);
 router.route("/getAllModerators").post(verifySuperAdmin, getAllModerators);
 router.route("/login").post(loginModerator);
 router.route("/updatePassword").post(verifyModerator, updatePassword);
