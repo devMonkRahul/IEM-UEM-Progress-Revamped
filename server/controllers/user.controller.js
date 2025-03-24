@@ -21,14 +21,6 @@ export const createUser = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.CONFLICT, "User already exists");
     }
 
-    if (!Array.isArray(department) || department.length === 0) {
-      return sendError(
-        res,
-        constants.VALIDATION_ERROR,
-        "Department must be an array",
-      );
-    }
-
     // Hash tempPassword before storing
     const salt = await bcrypt.genSalt(10);
     const hashedTempPassword = await bcrypt.hash(tempPassword, salt);
