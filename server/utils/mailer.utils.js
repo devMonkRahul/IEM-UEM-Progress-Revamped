@@ -45,3 +45,20 @@ export function generatePasswordMessage(email, password, role) {
 
     return { message, messageHTML };
 }
+
+export function generateForgotPasswordOTPMessage(email, otp) {
+    const message = `IEM_UEM_PROGRESS_REPORT - Password Reset OTP`;
+    const messageHTML = `
+      <div style="font-family: Arial, sans-serif; font-size: 16px; color: #333;">
+        <h2>Password Reset Request</h2>
+        <p>We received a request to reset your password for your account associated with this email: <strong>${email}</strong>.</p>
+        <p><strong>Your OTP (One-Time Password):</strong> <span style="font-size: 18px; font-weight: bold; color: #d9534f;">${otp}</span></p>
+        <p>This OTP is valid for the next 10 minutes. Please do not share it with anyone.</p>
+        <p>If you did not request a password reset, please ignore this email. Your account security remains intact.</p>
+        <br>
+        <p>Thank you,<br>The IEM_UEM_PROGRESS_REPORT Team</p>
+      </div>
+    `;
+
+    return { message, messageHTML };
+}

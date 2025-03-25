@@ -7,6 +7,8 @@ import {
   deleteModerator,
   updateModerator,
   profile,
+  generateOTP,
+  verifyOTP,
 } from "../controllers/moderator.controller.js";
 import {
   verifySuperAdmin,
@@ -22,5 +24,8 @@ router.route("/login").post(loginModerator);
 router.route("/updatePassword").post(verifyModerator, updatePassword);
 router.route("/deleteModerator/:moderatorId").post(verifySuperAdmin, deleteModerator);
 router.route("/updateModerator/:moderatorId").post(verifySuperAdmin, updateModerator);
+
+router.route("/generateOTP").post(generateOTP);
+router.route("/verifyOTP").post(verifyOTP);
 
 export default router;

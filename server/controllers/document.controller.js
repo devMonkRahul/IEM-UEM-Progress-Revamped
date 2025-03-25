@@ -443,13 +443,13 @@ export const bulkUpload = expressAsyncHandler(async (req, res) => {
       data["department"] = req.user.department;
     });
 
-    // const uploadedData = await DynamicModel.insertMany(jsonData);
+    const uploadedData = await DynamicModel.insertMany(jsonData);
 
     return sendSuccess(
       res,
       constants.OK,
       "Bulk Data uploaded successfully",
-      jsonData
+      uploadedData
     );
   } catch (error) {
     return sendServerError(res, error);

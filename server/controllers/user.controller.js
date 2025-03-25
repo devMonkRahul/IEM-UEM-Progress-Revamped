@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import OTP from "../models/otp.model.js";
 import expressAsyncHandler from "express-async-handler";
 import { constants } from "../constants.js";
 import {
@@ -8,16 +9,23 @@ import {
 } from "../utils/response.utils.js";
 import bcrypt from "bcrypt";
 import { generateRandomPassword } from "../utils/generateRandomPassword.utils.js";
-import { sendEmail, generatePasswordMessage } from "../utils/mailer.utils.js";
-import { config } from "dotenv";
+import { generateOTPCode } from "../utils/generateOTP.utils.js";
+import {
+  sendEmail,
+  generatePasswordMessage,
+  generateForgotPasswordOTPMessage,
+} from "../utils/mailer.utils.js";
 
-config({ path: "./.env" });
 export const createUser = expressAsyncHandler(async (req, res) => {
   try {
     const { name, email, phone, department, college } = req.body;
 
     if (!name || !email || !phone || !department || !college) {
-      return sendError(res, constants.VALIDATION_ERROR, "Please fill all the fields");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Please fill all the fields"
+      );
     }
 
     const tempPassword = generateRandomPassword();
@@ -42,7 +50,7 @@ export const createUser = expressAsyncHandler(async (req, res) => {
     const { message, messageHTML } = generatePasswordMessage(
       email,
       tempPassword,
-      `User, Department: ${department[0]}`,
+      `User, Department: ${department[0]}`
     );
 
     await sendEmail(email, "Account Credentials", message, messageHTML);
@@ -50,7 +58,7 @@ export const createUser = expressAsyncHandler(async (req, res) => {
       res,
       constants.OK,
       "User created successfully. Check your email for login credentials",
-      user,
+      user
     );
   } catch (error) {
     console.error("Error creating user: ", error);
@@ -66,7 +74,7 @@ export const loginUser = expressAsyncHandler(async (req, res) => {
       return sendError(
         res,
         constants.VALIDATION_ERROR,
-        "Please fill all the fields",
+        "Please fill all the fields"
       );
     }
 
@@ -90,7 +98,7 @@ export const loginUser = expressAsyncHandler(async (req, res) => {
         return sendError(
           res,
           constants.UNAUTHORIZED,
-          "Invalid temporary password",
+          "Invalid temporary password"
         );
       }
 
@@ -99,7 +107,7 @@ export const loginUser = expressAsyncHandler(async (req, res) => {
         res,
         constants.OK,
         "Temporary password accepted. Please change your password",
-        { accessToken, updatePassword: true },
+        { accessToken, updatePassword: true }
       );
     }
   } catch (error) {
@@ -124,9 +132,102 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
   }
 });
 
+export const generateOTP = expressAsyncHandler(async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return sendError(res, constants.VALIDATION_ERROR, "Email is required");
+    }
+
+    const user = await User.findOne({ email }).select("email");
+
+    if (!user) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Department not found with this email"
+      );
+    }
+
+    const existingOTP = await OTP.findOne({ email });
+    if (existingOTP) {
+      await OTP.findByIdAndDelete(existingOTP._id);
+    }
+
+    const otp = generateOTPCode();
+    const otpDoc = await OTP.create({ email, otp });
+
+    const { message, messageHTML } = generateForgotPasswordOTPMessage(
+      email,
+      otp
+    );
+
+    await sendEmail(
+      email,
+      `Password Reset OTP - "${otp}"`,
+      message,
+      messageHTML
+    );
+
+    return sendSuccess(res, constants.OK, "OTP sent successfully", otpDoc);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const verifyOTP = expressAsyncHandler(async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Email and OTP are required"
+      );
+    }
+
+    const otpDoc = await OTP.findOne({ email });
+    if (!otpDoc) {
+      return sendError(
+        res,
+        constants.UNAUTHORIZED,
+        "Your OTP has expired. Please request a new one"
+      );
+    }
+
+    if (otpDoc.otp !== otp) {
+      return sendError(res, constants.UNAUTHORIZED, "Invalid OTP");
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Department not found with this email"
+      );
+    }
+
+    const accessToken = await user.generateAccessToken();
+
+    await OTP.findByIdAndDelete(otpDoc._id);
+    return sendSuccess(res, constants.OK, "OTP verified successfully", {
+      accessToken,
+    });
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
 export const getUserProfile = expressAsyncHandler(async (req, res) => {
   try {
-    return sendSuccess(res, constants.OK, "Department profile fetched successfully", req.user);
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Department profile fetched successfully",
+      req.user
+    );
   } catch (error) {
     return sendServerError(res, error);
   }
@@ -141,9 +242,18 @@ export const getDepartmentById = expressAsyncHandler(async (req, res) => {
     const user = await User.findById(userId).select("-password -tempPassword");
 
     if (req.moderator && !req.moderator.department.includes(user.department)) {
-      return sendError(res, constants.UNAUTHORIZED, "You are not authorized to view this user");
+      return sendError(
+        res,
+        constants.UNAUTHORIZED,
+        "You are not authorized to view this user"
+      );
     }
-    return sendSuccess(res, constants.OK, "Department retrieved successfully", user);
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Department retrieved successfully",
+      user
+    );
   } catch (error) {
     return sendServerError(res, error);
   }
@@ -179,13 +289,13 @@ export const updateUserDetails = expressAsyncHandler(async (req, res) => {
         department,
         college,
       },
-      { new: true, validateBeforeSave: true },
+      { new: true, validateBeforeSave: true }
     );
     return sendSuccess(
       res,
       constants.OK,
       "User updated successfully",
-      updatedUser,
+      updatedUser
     );
   } catch (error) {
     return sendServerError(res, error);
