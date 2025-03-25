@@ -251,9 +251,7 @@ export const generateOTP = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Email is required");
     }
 
-    const moderator = await Moderator.findOne({ email }).select(
-      "email name department college"
-    );
+    const moderator = await Moderator.findOne({ email }).select("email");
 
     if (!moderator) {
       return sendError(

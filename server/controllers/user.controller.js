@@ -10,7 +10,11 @@ import {
 import bcrypt from "bcrypt";
 import { generateRandomPassword } from "../utils/generateRandomPassword.utils.js";
 import { generateOTPCode } from "../utils/generateOTP.utils.js";
-import { sendEmail, generatePasswordMessage, generateForgotPasswordOTPMessage } from "../utils/mailer.utils.js";
+import {
+  sendEmail,
+  generatePasswordMessage,
+  generateForgotPasswordOTPMessage,
+} from "../utils/mailer.utils.js";
 
 export const createUser = expressAsyncHandler(async (req, res) => {
   try {
@@ -135,10 +139,14 @@ export const generateOTP = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Email is required");
     }
 
-    const user = await User.findOne({ email }).select("email name department college");
+    const user = await User.findOne({ email }).select("email");
 
     if (!user) {
-      return sendError(res, constants.VALIDATION_ERROR, "User not found with this email");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Department not found with this email"
+      );
     }
 
     const existingOTP = await OTP.findOne({ email });
@@ -149,9 +157,17 @@ export const generateOTP = expressAsyncHandler(async (req, res) => {
     const otp = generateOTPCode();
     const otpDoc = await OTP.create({ email, otp });
 
-    const { message, messageHTML } = generateForgotPasswordOTPMessage(email, otp);
+    const { message, messageHTML } = generateForgotPasswordOTPMessage(
+      email,
+      otp
+    );
 
-    await sendEmail(email, `Password Reset OTP - "${otp}"`, message, messageHTML);
+    await sendEmail(
+      email,
+      `Password Reset OTP - "${otp}"`,
+      message,
+      messageHTML
+    );
 
     return sendSuccess(res, constants.OK, "OTP sent successfully", otpDoc);
   } catch (error) {
@@ -163,12 +179,20 @@ export const verifyOTP = expressAsyncHandler(async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
-      return sendError(res, constants.VALIDATION_ERROR, "Email and OTP are required");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Email and OTP are required"
+      );
     }
 
     const otpDoc = await OTP.findOne({ email });
     if (!otpDoc) {
-      return sendError(res, constants.UNAUTHORIZED, "Your OTP has expired. Please request a new one");
+      return sendError(
+        res,
+        constants.UNAUTHORIZED,
+        "Your OTP has expired. Please request a new one"
+      );
     }
 
     if (otpDoc.otp !== otp) {
@@ -178,13 +202,19 @@ export const verifyOTP = expressAsyncHandler(async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return sendError(res, constants.VALIDATION_ERROR, "User not found with this email");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Department not found with this email"
+      );
     }
 
     const accessToken = await user.generateAccessToken();
 
     await OTP.findByIdAndDelete(otpDoc._id);
-    return sendSuccess(res, constants.OK, "OTP verified successfully", { accessToken });
+    return sendSuccess(res, constants.OK, "OTP verified successfully", {
+      accessToken,
+    });
   } catch (error) {
     return sendServerError(res, error);
   }
