@@ -43,7 +43,6 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
   }
 });
 
-
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
@@ -83,7 +82,6 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
     }
   }
 );
-
 
 export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
   try {
