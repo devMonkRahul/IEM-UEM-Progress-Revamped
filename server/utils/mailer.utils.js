@@ -47,7 +47,7 @@ export function generatePasswordMessage(email, password, role) {
 }
 
 export function generateForgotPasswordOTPMessage(email, otp) {
-    const subject = `IEM_UEM_PROGRESS_REPORT - Password Reset OTP`;
+    const message = `IEM_UEM_PROGRESS_REPORT - Password Reset OTP`;
     const messageHTML = `
       <div style="font-family: Arial, sans-serif; font-size: 16px; color: #333;">
         <h2>Password Reset Request</h2>
@@ -60,5 +60,5 @@ export function generateForgotPasswordOTPMessage(email, otp) {
       </div>
     `;
 
-    return { subject, messageHTML };
+    return { message, messageHTML };
 }
