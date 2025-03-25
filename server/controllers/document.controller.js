@@ -43,6 +43,48 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
   }
 });
 
+
+export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
+  async (req, res) => {
+    try {
+      const { tableName } = req.body;
+
+      if (!tableName) {
+        return sendError(
+          res,
+          constants.VALIDATION_ERROR,
+          "Invalid request data"
+        );
+      }
+
+      // Sanitize table name (replace spaces with underscores)
+      const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+
+      const DynamicModel = mongoose.models[sanitizedTableName];
+
+      if (!DynamicModel) {
+        return sendError(res, constants.VALIDATION_ERROR, "Model not found");
+      }
+
+      // Super Admin can retrieve all submitted documents
+      const documents = await DynamicModel.find({ submitted: true }).populate(
+        "submittedBy",
+        "name email"
+      );
+
+      return sendSuccess(
+        res,
+        constants.OK,
+        "Documents retrieved successfully",
+        documents
+      );
+    } catch (error) {
+      return sendServerError(res, error);
+    }
+  }
+);
+
+
 export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
   try {
     const { tableName } = req.body;

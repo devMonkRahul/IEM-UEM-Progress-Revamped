@@ -8,6 +8,7 @@ import {
   verifyDocumentBySuperAdmin,
   finalSubmission,
   bulkUpload,
+  getAllDocumentsBySuperAdmin,
 } from "../controllers/document.controller.js";
 import {
   verifyUser,
@@ -21,6 +22,7 @@ const router = Router();
 
 router.route("/createDocument").post(verifyUser, createDocument);
 router.route("/getAllDocumentsByUser").post(verifyUser, getAllDocumentsByUser);
+router.route("/getAllDocumentsBySuperAdmin").post(verifySuperAdmin, getAllDocumentsBySuperAdmin);
 router
   .route("/getAllDocumentsByModerator")
   .post(verifyModerator, getAllDocumentsByModerator);
