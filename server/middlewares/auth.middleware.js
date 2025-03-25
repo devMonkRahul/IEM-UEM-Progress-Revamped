@@ -11,16 +11,23 @@ export const verifySuperAdmin = expressAsyncHandler(async (req, res, next) => {
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return sendUnauthorized(res, "Access denied. No token provided");
+      return sendUnauthorized(res);
     }
 
-    const decoded = jwt.verify(token, config.accessTokenSecret);
+    let decoded;
+
+    try {
+      decoded = jwt.verify(token, config.accessTokenSecret);
+    } catch (error) {
+      return sendUnauthorized(res);
+    }
+
     const superAdmin = await SuperAdmin.findById(decoded?._id).select(
       "-password"
     );
 
     if (!superAdmin) {
-      return sendUnauthorized(res, "Invalid token");
+      return sendUnauthorized(res);
     }
 
     req.superAdmin = superAdmin;
@@ -35,14 +42,21 @@ export const verifyUser = expressAsyncHandler(async (req, res, next) => {
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return sendUnauthorized(res, "Access denied. No token provided");
+      return sendUnauthorized(res);
     }
 
-    const decoded = jwt.verify(token, config.accessTokenSecret);
+    let decoded;
+
+    try {
+      decoded = jwt.verify(token, config.accessTokenSecret);
+    } catch (error) {
+      return sendUnauthorized(res);
+    }
+
     const user = await User.findById(decoded?._id).select("-password");
 
     if (!user) {
-      return sendUnauthorized(res, "Invalid token");
+      return sendUnauthorized(res);
     }
 
     req.user = user;
@@ -57,14 +71,21 @@ export const verifyModerator = expressAsyncHandler(async (req, res, next) => {
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return sendUnauthorized(res, "Access denied. No token provided");
+      return sendUnauthorized(res);
     }
 
-    const decoded = jwt.verify(token, config.accessTokenSecret);
-    const moderator = await Moderator.findById(decoded?._id).select("-password");
+    let decoded;
+    try {
+      decoded = jwt.verify(token, config.accessTokenSecret);
+    } catch (error) {
+      return sendUnauthorized(res);
+    }
+    const moderator = await Moderator.findById(decoded?._id).select(
+      "-password"
+    );
 
     if (!moderator) {
-      return sendUnauthorized(res, "Invalid token");
+      return sendUnauthorized(res);
     }
 
     req.moderator = moderator;
@@ -79,29 +100,36 @@ export const verifyLogin = expressAsyncHandler(async (req, res, next) => {
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return sendUnauthorized(res, "Access denied. No token provided");
+      return sendUnauthorized(res);
     }
 
-    const decoded = jwt.verify(token, config.accessTokenSecret);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, config.accessTokenSecret);
+    } catch (error) {
+      return sendUnauthorized(res)
+    }
 
     if (!decoded) {
-      return sendUnauthorized(res, "Invalid Access token");
+      return sendUnauthorized(res);
     }
 
     if (decoded?.role === "user") {
       const user = await User.findById(decoded?._id).select("-password");
       if (!user) {
-        return sendUnauthorized(res, "Invalid token");
+        return sendUnauthorized(res);
       }
-  
+
       req.user = user;
       next();
     } else if (decoded?.role === "moderator") {
-      const moderator = await Moderator.findById(decoded?._id).select("-password");
+      const moderator = await Moderator.findById(decoded?._id).select(
+        "-password"
+      );
       if (!moderator) {
-        return sendUnauthorized(res, "Invalid token");
+        return sendUnauthorized(res);
       }
-  
+
       req.moderator = moderator;
       next();
     } else {
@@ -109,13 +137,12 @@ export const verifyLogin = expressAsyncHandler(async (req, res, next) => {
         "-password"
       );
       if (!superAdmin) {
-        return sendUnauthorized(res, "Invalid token");
+        return sendUnauthorized(res);
       }
-  
+
       req.superAdmin = superAdmin;
       next();
     }
-
   } catch (error) {
     return sendServerError(res, error);
   }

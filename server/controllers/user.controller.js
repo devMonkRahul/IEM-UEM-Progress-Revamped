@@ -13,6 +13,11 @@ import { sendEmail, generatePasswordMessage } from "../utils/mailer.utils.js";
 export const createUser = expressAsyncHandler(async (req, res) => {
   try {
     const { name, email, phone, department, college } = req.body;
+
+    if (!name || !email || !phone || !department || !college) {
+      return sendError(res, constants.VALIDATION_ERROR, "Please fill all the fields");
+    }
+
     const tempPassword = generateRandomPassword();
 
     if (await User.findOne({ email })) {

@@ -13,13 +13,18 @@ import { sendEmail, generatePasswordMessage } from "../utils/mailer.utils.js";
 export const createModerator = expressAsyncHandler(async (req, res) => {
   try {
     const { name, email, phone, department, college } = req.body;
+
+    if (!name || !email || !phone || !department || !college) {
+      return sendError(res, constants.VALIDATION_ERROR, "Please fill all the fields");
+    }
+
     const tempPassword = generateRandomPassword();
 
-    if (!Array.isArray(department) || department.length === 0) {
+    if (!Array.isArray(department) || department.length === 0 || !Array.isArray(college) || college.length === 0) {
       return sendError(
         res,
         constants.VALIDATION_ERROR,
-        "Department must be an array"
+        "Department and college must be an non-empty array"
       );
     }
 
