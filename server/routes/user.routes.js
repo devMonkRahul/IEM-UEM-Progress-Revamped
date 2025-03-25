@@ -8,6 +8,8 @@ import {
   deleteUser,
   getUserProfile,
   getDepartmentById,
+  generateOTP,
+  verifyOTP,
 } from "../controllers/user.controller.js";
 import {
   verifySuperAdmin,
@@ -30,5 +32,8 @@ router
   .route("/updateUserDetails/:userId")
   .post(verifySuperAdmin, updateUserDetails);
 router.route("/deleteUser/:userId").post(verifySuperAdmin, deleteUser);
+
+router.route("/generateOTP").post(generateOTP);
+router.route("/verifyOTP").post(verifyOTP);
 
 export default router;

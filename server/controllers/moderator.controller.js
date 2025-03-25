@@ -1,4 +1,5 @@
 import Moderator from "../models/moderator.model.js";
+import OTP from "../models/otp.model.js";
 import expressAsyncHandler from "express-async-handler";
 import { constants } from "../constants.js";
 import {
@@ -8,19 +9,33 @@ import {
 } from "../utils/response.utils.js";
 import bcrypt from "bcrypt";
 import { generateRandomPassword } from "../utils/generateRandomPassword.utils.js";
-import { sendEmail, generatePasswordMessage } from "../utils/mailer.utils.js";
+import { generateOTPCode } from "../utils/generateOTP.utils.js";
+import {
+  sendEmail,
+  generatePasswordMessage,
+  generateForgotPasswordOTPMessage,
+} from "../utils/mailer.utils.js";
 
 export const createModerator = expressAsyncHandler(async (req, res) => {
   try {
     const { name, email, phone, department, college } = req.body;
 
     if (!name || !email || !phone || !department || !college) {
-      return sendError(res, constants.VALIDATION_ERROR, "Please fill all the fields");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Please fill all the fields"
+      );
     }
 
     const tempPassword = generateRandomPassword();
 
-    if (!Array.isArray(department) || department.length === 0 || !Array.isArray(college) || college.length === 0) {
+    if (
+      !Array.isArray(department) ||
+      department.length === 0 ||
+      !Array.isArray(college) ||
+      college.length === 0
+    ) {
       return sendError(
         res,
         constants.VALIDATION_ERROR,
@@ -139,7 +154,9 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
 
 export const getAllModerators = expressAsyncHandler(async (req, res) => {
   try {
-    const moderators = await Moderator.find({}).select("-password -tempPassword");
+    const moderators = await Moderator.find({}).select(
+      "-password -tempPassword"
+    );
 
     if (!moderators || moderators.length === 0) {
       return sendSuccess(res, constants.OK, "No moderators found", []);
@@ -160,7 +177,11 @@ export const deleteModerator = expressAsyncHandler(async (req, res) => {
   try {
     const { moderatorId } = req.params;
     if (!moderatorId) {
-      return sendError(res, constants.VALIDATION_ERROR, "Moderator ID is required");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Moderator ID is required"
+      );
     }
 
     const moderator = await Moderator.findById(moderatorId);
@@ -181,7 +202,11 @@ export const updateModerator = expressAsyncHandler(async (req, res) => {
     const { name, email, phone, department, college } = req.body;
 
     if (!moderatorId) {
-      return sendError(res, constants.VALIDATION_ERROR, "Moderator ID is required");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Moderator ID is required"
+      );
     }
 
     const moderator = await Moderator.findById(moderatorId);
@@ -195,7 +220,12 @@ export const updateModerator = expressAsyncHandler(async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    sendSuccess(res, constants.OK, "Moderator updated successfully", updatedModerator);
+    sendSuccess(
+      res,
+      constants.OK,
+      "Moderator updated successfully",
+      updatedModerator
+    );
   } catch (error) {
     return sendServerError(res, error);
   }
@@ -203,7 +233,102 @@ export const updateModerator = expressAsyncHandler(async (req, res) => {
 
 export const profile = expressAsyncHandler(async (req, res) => {
   try {
-    return sendSuccess(res, constants.OK, "Moderator profile retrieved successfully", req.moderator);
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Moderator profile retrieved successfully",
+      req.moderator
+    );
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const generateOTP = expressAsyncHandler(async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return sendError(res, constants.VALIDATION_ERROR, "Email is required");
+    }
+
+    const moderator = await Moderator.findOne({ email }).select(
+      "email name department college"
+    );
+
+    if (!moderator) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Moderator not found with this email"
+      );
+    }
+
+    const existingOTP = await OTP.findOne({ email });
+    if (existingOTP) {
+      await OTP.findByIdAndDelete(existingOTP._id);
+    }
+
+    const otp = generateOTPCode();
+    const otpDoc = await OTP.create({ email, otp });
+
+    const { message, messageHTML } = generateForgotPasswordOTPMessage(
+      email,
+      otp
+    );
+
+    await sendEmail(
+      email,
+      `Password Reset OTP - "${otp}"`,
+      message,
+      messageHTML
+    );
+
+    return sendSuccess(res, constants.OK, "OTP sent successfully", otpDoc);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const verifyOTP = expressAsyncHandler(async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Email and OTP are required"
+      );
+    }
+
+    const otpDoc = await OTP.findOne({ email });
+    if (!otpDoc) {
+      return sendError(
+        res,
+        constants.UNAUTHORIZED,
+        "Your OTP has expired. Please request a new one"
+      );
+    }
+
+    if (otpDoc.otp !== otp) {
+      return sendError(res, constants.UNAUTHORIZED, "Invalid OTP");
+    }
+
+    const moderator = await Moderator.findOne({ email });
+
+    if (!moderator) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Moderator not found with this email"
+      );
+    }
+
+    const accessToken = await moderator.generateAccessToken();
+
+    await OTP.findByIdAndDelete(otpDoc._id);
+    return sendSuccess(res, constants.OK, "OTP verified successfully", {
+      accessToken,
+    });
   } catch (error) {
     return sendServerError(res, error);
   }
