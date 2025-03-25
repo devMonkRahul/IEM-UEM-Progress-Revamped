@@ -8,6 +8,7 @@ import {
 import mongoose from "mongoose";
 import XLSX from "xlsx";
 import fs from "fs";
+import SchemaMeta from "../models/tableSchema.model.js";
 
 export const createDocument = expressAsyncHandler(async (req, res) => {
   try {
@@ -359,24 +360,53 @@ export const bulkUpload = expressAsyncHandler(async (req, res) => {
   try {
     const { tableName } = req.body;
     const { file } = req;
-  
+
     if (!file) {
       return sendError(res, constants.VALIDATION_ERROR, "No file uploaded");
     }
-  
+
     if (!tableName) {
-      return sendError(res, constants.VALIDATION_ERROR, "Table name is required");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Table name is required"
+      );
     }
-  
+
     // Sanitize table name (replace spaces with underscores)
     const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
-  
+
     const DynamicModel = mongoose.models[sanitizedTableName];
-  
+
     if (!DynamicModel) {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
-  
+
+    const tableSchema = await SchemaMeta.findOne({
+      tableName: sanitizedTableName,
+    });
+    if (!tableSchema) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Table schema not found"
+      );
+    }
+
+    const requiredFields = Object.keys(tableSchema.schemaDefinition).filter(
+      (field) =>
+        ![
+          "_id",
+          "status",
+          "submitted",
+          "submittedBy",
+          "college",
+          "department",
+          "moderatorComment",
+          "superAdminComment",
+        ].includes(field)
+    );
+
     const workbook = XLSX.readFile(file.path);
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
@@ -386,7 +416,25 @@ export const bulkUpload = expressAsyncHandler(async (req, res) => {
     fs.unlinkSync(file.path);
 
     if (!jsonData || jsonData.length === 0) {
-      return sendError(res, constants.VALIDATION_ERROR, "No data found in the file");
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "No data found in the file"
+      );
+    }
+
+    const missingFieldsData = jsonData.find((data) =>
+      requiredFields.some((field) => !data.hasOwnProperty(field))
+    );
+
+    if (missingFieldsData) {
+      const missingFields = requiredFields.filter((field) => !missingFieldsData.hasOwnProperty(field));
+
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        `Missing fields in the file: ${missingFields.join(", ")}`
+      );
     }
 
     jsonData.forEach((data) => {
@@ -395,10 +443,14 @@ export const bulkUpload = expressAsyncHandler(async (req, res) => {
       data["department"] = req.user.department;
     });
 
-    const uploadedData = await DynamicModel.insertMany(jsonData);
+    // const uploadedData = await DynamicModel.insertMany(jsonData);
 
-    return sendSuccess(res, constants.OK, "Bulk Data uploaded successfully", uploadedData);
-    
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Bulk Data uploaded successfully",
+      jsonData
+    );
   } catch (error) {
     return sendServerError(res, error);
   }

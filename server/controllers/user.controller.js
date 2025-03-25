@@ -126,7 +126,24 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
 
 export const getUserProfile = expressAsyncHandler(async (req, res) => {
   try {
-    return sendSuccess(res, constants.OK, "User profile fetched successfully", req.user);
+    return sendSuccess(res, constants.OK, "Department profile fetched successfully", req.user);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const getDepartmentById = expressAsyncHandler(async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return sendError(res, constants.VALIDATION_ERROR, "User ID is required");
+    }
+    const user = await User.findById(userId).select("-password -tempPassword");
+
+    if (req.moderator && !req.moderator.department.includes(user.department)) {
+      return sendError(res, constants.UNAUTHORIZED, "You are not authorized to view this user");
+    }
+    return sendSuccess(res, constants.OK, "Department retrieved successfully", user);
   } catch (error) {
     return sendServerError(res, error);
   }
