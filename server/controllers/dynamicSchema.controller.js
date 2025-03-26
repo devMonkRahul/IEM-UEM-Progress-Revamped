@@ -77,7 +77,7 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
         "pending",
         "approved",
         "rejected",
-        "requestedForApproval",
+        " ",
         "requestedForRejection",
       ],
     };

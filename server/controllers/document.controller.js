@@ -48,6 +48,11 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
       const { tableName } = req.body;
+      const { page = 1, limit = 10 } = req.query;
+      const pageNumber = parseInt(page, 10);
+      const limitNumber = parseInt(limit, 10);
+
+      const skip = (pageNumber - 1) * limitNumber;
 
       if (!tableName) {
         return sendError(
@@ -67,16 +72,36 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
       }
 
       // Super Admin can retrieve all submitted documents
-      const documents = await DynamicModel.find({ submitted: true }).populate(
-        "submittedBy",
-        "name email"
-      );
+      const documents = await DynamicModel.find({
+        $or: [
+          { status: "requestedForApproval" },
+          { status: "requestedForRejection" },
+        ],
+      })
+        .populate("submittedBy", "name email")
+        .skip(skip)
+        .limit(limitNumber)
+        .exec();
+
+      const countDocument = await DynamicModel.countDocuments({
+        $or: [
+          { status: "requestedForApproval" },
+          { status: "requestedForRejection" },
+        ],
+      });
 
       return sendSuccess(
         res,
         constants.OK,
         "Documents retrieved successfully",
-        documents
+        {
+          documents,
+          pagination: {
+            currentPage: pageNumber,
+            totalPages: Math.ceil(countDocument / limitNumber),
+            countDocument,
+          },
+        }
       );
     } catch (error) {
       return sendServerError(res, error);
@@ -87,6 +112,11 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
 export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
   try {
     const { tableName } = req.body;
+    const { page = 1, limit = 10 } = req.query;
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+
+    const skip = (pageNumber - 1) * limitNumber;
 
     if (!tableName) {
       return sendError(res, constants.VALIDATION_ERROR, "Invalid request Data");
@@ -101,14 +131,23 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
 
-    const documents = await DynamicModel.find({ submittedBy: req.user?._id });
+    const documents = await DynamicModel.find({ submittedBy: req.user?._id })
+      .skip(skip)
+      .limit(limitNumber)
+      .exec();
 
-    return sendSuccess(
-      res,
-      constants.OK,
-      "Documents retrieved successfully",
-      documents
-    );
+    const countDocument = await DynamicModel.countDocuments({
+      submittedBy: req.user?._id,
+    });
+
+    return sendSuccess(res, constants.OK, "Documents retrieved successfully", {
+      documents,
+      pagination: {
+        currentPage: pageNumber,
+        totalPages: Math.ceil(countDocument / limitNumber),
+        countDocument,
+      },
+    });
   } catch (error) {
     return sendServerError(res, error);
   }
@@ -118,6 +157,11 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
   async (req, res) => {
     try {
       const { tableName } = req.body;
+      const { page = 1, limit = 10 } = req.query;
+      const pageNumber = parseInt(page, 10);
+      const limitNumber = parseInt(limit, 10);
+
+      const skip = (pageNumber - 1) * limitNumber;
 
       if (!tableName) {
         return sendError(
@@ -136,17 +180,32 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
         return sendError(res, constants.VALIDATION_ERROR, "Model not found");
       }
 
-      const documents = await DynamicModel.find({
+      const moderatorQuery = {
         college: { $in: req.moderator.college },
         department: { $in: req.moderator.department },
         submitted: true,
-      }).populate("submittedBy", "name email");
+      };
+
+      const documents = await DynamicModel.find(moderatorQuery)
+        .populate("submittedBy", "name email")
+        .skip(skip)
+        .limit(limitNumber)
+        .exec();
+
+      const countDocument = await DynamicModel.countDocuments(moderatorQuery);
 
       return sendSuccess(
         res,
         constants.OK,
         "Documents retrieved successfully",
-        documents
+        {
+          documents,
+          pagination: {
+            currentPage: pageNumber,
+            totalPages: Math.ceil(countDocument / limitNumber),
+            countDocument,
+          },
+        }
       );
     } catch (error) {
       return sendServerError(res, error);
@@ -428,7 +487,9 @@ export const bulkUpload = expressAsyncHandler(async (req, res) => {
     );
 
     if (missingFieldsData) {
-      const missingFields = requiredFields.filter((field) => !missingFieldsData.hasOwnProperty(field));
+      const missingFields = requiredFields.filter(
+        (field) => !missingFieldsData.hasOwnProperty(field)
+      );
 
       return sendError(
         res,
