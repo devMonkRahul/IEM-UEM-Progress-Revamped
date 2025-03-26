@@ -76,6 +76,8 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
         $or: [
           { status: "requestedForApproval" },
           { status: "requestedForRejection" },
+          { status: "approved" },
+          { status: "rejected" },
         ],
       })
         .populate("submittedBy", "name email")
