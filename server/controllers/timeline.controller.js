@@ -80,3 +80,27 @@ export const getTimeline = expressAsyncHandler(async (req, res) => {
     return sendServerError(res, error);
   }
 });
+
+export const checkDateInTimeline = expressAsyncHandler(async (req, res) => {
+  try {
+    const date = new Date().toISOString().split("T")[0];
+
+    const timeline = await Timeline.findOne();
+
+    if (!timeline) {
+      return sendError(res, constants.NO_CONTENT, "Timeline not found");
+    }
+
+    if (new Date(date) < new Date(timeline.startDate)) {
+      return sendError(res, constants.VALIDATION_ERROR, "Date is before timeline start date");
+    }
+
+    if (new Date(date) > new Date(timeline.endDate)) {
+      return sendError(res, constants.VALIDATION_ERROR, "Date is after timeline end date");
+    }
+
+    return sendSuccess(res, constants.OK, "Date is in timeline");
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});

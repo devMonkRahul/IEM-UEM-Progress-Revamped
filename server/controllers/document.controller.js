@@ -47,7 +47,7 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName } = req.body;
+      const { tableName, startDate, endDate, college } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
@@ -62,6 +62,29 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
         );
       }
 
+      let query = {};
+      if (startDate && endDate) {
+        if (new Date(startDate) > new Date(endDate)) {
+          return sendError(
+            res,
+            constants.VALIDATION_ERROR,
+            "Start date cannot be greater than end date"
+          );
+        }
+        query["createdAt"] = { $gte: startDate, $lte: endDate };
+      }
+
+      if (college) {
+        query["college"] = college;
+      }
+
+      query["$or"] = [
+        { status: "requestedForApproval" },
+        { status: "requestedForRejection" },
+        { status: "approved" },
+        { status: "rejected" },
+      ];
+
       // Sanitize table name (replace spaces with underscores)
       const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
 
@@ -72,25 +95,13 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
       }
 
       // Super Admin can retrieve all submitted documents
-      const documents = await DynamicModel.find({
-        $or: [
-          { status: "requestedForApproval" },
-          { status: "requestedForRejection" },
-          { status: "approved" },
-          { status: "rejected" },
-        ],
-      })
+      const documents = await DynamicModel.find(query)
         .populate("submittedBy", "name email")
         .skip(skip)
         .limit(limitNumber)
         .exec();
 
-      const countDocument = await DynamicModel.countDocuments({
-        $or: [
-          { status: "requestedForApproval" },
-          { status: "requestedForRejection" },
-        ],
-      });
+      const countDocument = await DynamicModel.countDocuments(query);
 
       return sendSuccess(
         res,
