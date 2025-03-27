@@ -158,7 +158,7 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsByModerator = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName } = req.body;
+      const { tableName, status } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
@@ -187,6 +187,10 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
         department: { $in: req.moderator.department },
         submitted: true,
       };
+
+      if (status) {
+        moderatorQuery["status"] = status;
+      }
 
       const documents = await DynamicModel.find(moderatorQuery)
         .populate("submittedBy", "name email")
