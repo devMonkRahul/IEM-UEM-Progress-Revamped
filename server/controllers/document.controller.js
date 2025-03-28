@@ -49,22 +49,22 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate, college } = req.body;
+      const { tableName, startDate, endDate, college, department } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
 
       const skip = (pageNumber - 1) * limitNumber;
 
-      if (!tableName) {
+      if (!tableName || !department) {
         return sendError(
           res,
           constants.VALIDATION_ERROR,
-          "Invalid request data"
+          "Table name and department are required"
         );
       }
 
-      let query = {};
+      let query = { department };
       if (startDate && endDate) {
         if (new Date(startDate) > new Date(endDate)) {
           return sendError(
