@@ -9,6 +9,7 @@ import {
   finalSubmission,
   bulkUpload,
   getAllDocumentsBySuperAdmin,
+  uploadDocumentFile,
 } from "../controllers/document.controller.js";
 import {
   verifyUser,
@@ -20,7 +21,7 @@ import { uploadExcel, uploadPdf } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-router.route("/createDocument").post(verifyUser, uploadPdf.single("file"), createDocument);
+router.route("/createDocument").post(verifyUser, createDocument);
 router.route("/getAllDocumentsByUser").post(verifyUser, getAllDocumentsByUser);
 router.route("/getAllDocumentsBySuperAdmin").post(verifySuperAdmin, getAllDocumentsBySuperAdmin);
 router
@@ -37,5 +38,7 @@ router
 router.route("/bulkUpload").post(verifyUser, uploadExcel.single("file"), bulkUpload);
 
 router.route("/finalSubmission").post(verifyUser, finalSubmission);
+
+router.route("/uploadDocumentFile").post(verifyUser, uploadPdf.single("file"), uploadDocumentFile);
 
 export default router;

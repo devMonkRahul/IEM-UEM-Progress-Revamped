@@ -29,21 +29,6 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
 
-    const { schemaDefinition } = await RawSchemaMeta.findOne({
-      tableName: sanitizedTableName,
-    });
-
-    // Find fields where type is 'File'
-    const fileField = Object.keys(schemaDefinition).filter(
-      (key) => schemaDefinition[key].type === "File"
-    );
-
-    if (fileField && !req.file) {
-      return sendError(res, constants.VALIDATION_ERROR, "File is required");
-    }
-
-    data[fileField] = await uploadFile(req.file);
-
     data["submittedBy"] = req.user._id;
     data["college"] = req.user.college;
     data["department"] = req.user.department;
@@ -192,18 +177,18 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsByModerator = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, status } = req.body;
+      const { tableName, status, department } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
 
       const skip = (pageNumber - 1) * limitNumber;
 
-      if (!tableName) {
+      if (!tableName || !department) {
         return sendError(
           res,
           constants.VALIDATION_ERROR,
-          "Invalid request Data"
+          "Table name and department are required"
         );
       }
 
@@ -216,9 +201,17 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
         return sendError(res, constants.VALIDATION_ERROR, "Model not found");
       }
 
+      if (!req.moderator.department.includes(department)) {
+        return sendError(
+          res,
+          constants.VALIDATION_ERROR,
+          "You are not authorized to view documents of this department"
+        );
+      }
+
       const moderatorQuery = {
         college: { $in: req.moderator.college },
-        department: { $in: req.moderator.department },
+        department,
         submitted: true,
       };
 
@@ -569,6 +562,20 @@ export const bulkUpload = expressAsyncHandler(async (req, res) => {
       "Bulk Data uploaded successfully",
       uploadedData
     );
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
+export const uploadDocumentFile = expressAsyncHandler(async (req, res) => {
+  try {
+    if (!req.file) {
+      return sendError(res, constants.VALIDATION_ERROR, "No file given");
+    }
+
+    const file = await uploadFile(req.file);
+
+    return sendSuccess(res, constants.OK, "File uploaded successfully", file);
   } catch (error) {
     return sendServerError(res, error);
   }
