@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
 });
 
 // File filter to accept only Excel and CSV files (.xlsx, .xls, .csv)
-const fileFilter = (req, file, cb) => {
+const excelFileFilter = (req, file, cb) => {
   // Get the file extension without the dot
   const ext = path.extname(file.originalname).toLowerCase();
   
@@ -41,8 +41,29 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Multer upload instance with file size limit
+const pdfFileFilter = (req, file, cb) => {
+  // Get the file extension without the dot
+  const ext = path.extname(file.originalname).toLowerCase();
+  
+  // Define allowed extensions and MIME types
+  const allowedExtensions = ['.pdf'];
+  const allowedMimeTypes = [
+    'application/pdf'
+  ];
+
+  if (allowedExtensions.includes(ext) && allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only PDF files are allowed (.pdf)"));
+  }
+}
+
 export const uploadExcel = multer({ 
   storage, 
-  fileFilter,
+  excelFileFilter,
+});
+
+export const uploadPdf = multer({
+  storage,
+  pdfFileFilter,
 });

@@ -9,6 +9,8 @@ import mongoose from "mongoose";
 import XLSX from "xlsx";
 import fs from "fs";
 import SchemaMeta from "../models/tableSchema.model.js";
+import RawSchemaMeta from "../models/rawTableSchema.model.js";
+import { uploadFile, generateSignedUrl } from "../utils/s3Upload.utils.js"
 
 export const createDocument = expressAsyncHandler(async (req, res) => {
   try {
@@ -26,6 +28,21 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
     if (!DynamicModel) {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
+
+    const { schemaDefinition } = await RawSchemaMeta.findOne({
+      tableName: sanitizedTableName,
+    });
+
+    // Find fields where type is 'File'
+    const fileField = Object.keys(schemaDefinition).filter(
+      (key) => schemaDefinition[key].type === "File"
+    );
+
+    if (fileField && !req.file) {
+      return sendError(res, constants.VALIDATION_ERROR, "File is required");
+    }
+
+    data[fileField] = await uploadFile(req.file);
 
     data["submittedBy"] = req.user._id;
     data["college"] = req.user.college;
@@ -144,14 +161,20 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
 
-    const documents = await DynamicModel.find({ submittedBy: req.user?._id })
+    let query = { 
+      submittedBy: req.user?._id,
+      $or: [
+        { status: "rejected" },
+        { submitted: false },
+      ]
+    };
+
+    const documents = await DynamicModel.find(query)
       .skip(skip)
       .limit(limitNumber)
       .exec();
 
-    const countDocument = await DynamicModel.countDocuments({
-      submittedBy: req.user?._id,
-    });
+    const countDocument = await DynamicModel.countDocuments(query);
 
     return sendSuccess(res, constants.OK, "Documents retrieved successfully", {
       documents,
@@ -243,13 +266,22 @@ export const getDocumentById = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
 
+    const { schemaDefinition } = await RawSchemaMeta.findOne({
+      tableName: sanitizedTableName,
+    });
+
+    // Find fields where type is 'File'
+    const fileField = Object.keys(schemaDefinition).filter(
+      (key) => schemaDefinition[key].type === "File"
+    );
+
     const document = await DynamicModel.findOne({ _id: documentId });
 
     if (!document) {
       return sendError(res, constants.NO_CONTENT, "Document not found");
     }
 
-    if (req.user && document.submittedBy !== req.user._id) {
+    if (req.user && !req.user._id.equals(document.submittedBy)) {
       return sendError(
         res,
         constants.VALIDATION_ERROR,
@@ -267,6 +299,14 @@ export const getDocumentById = expressAsyncHandler(async (req, res) => {
         constants.VALIDATION_ERROR,
         "You are not authorized to view this document"
       );
+    }
+
+    if (fileField && document[fileField]) {
+      try {
+        document[fileField] = await generateSignedUrl(document[fileField]);
+      } catch (error) {
+        console.error("Error generating signed URL", error);
+      }
     }
 
     return sendSuccess(

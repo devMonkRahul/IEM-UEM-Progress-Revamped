@@ -16,11 +16,11 @@ import {
   verifyLogin,
   verifySuperAdmin,
 } from "../middlewares/auth.middleware.js";
-import { uploadExcel } from "../middlewares/multer.middleware.js";
+import { uploadExcel, uploadPdf } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-router.route("/createDocument").post(verifyUser, createDocument);
+router.route("/createDocument").post(verifyUser, uploadPdf.single("file"), createDocument);
 router.route("/getAllDocumentsByUser").post(verifyUser, getAllDocumentsByUser);
 router.route("/getAllDocumentsBySuperAdmin").post(verifySuperAdmin, getAllDocumentsBySuperAdmin);
 router
