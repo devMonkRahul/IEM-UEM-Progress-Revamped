@@ -33,7 +33,7 @@ const getDocumentCountOfDepartments = async (user, tableNames) => {
       if (!DynamicModel) return; // Skip if model not found
 
       // Fetch all documents in a single query
-      const documents = await DynamicModel.find({ submittedBy: user._id }, "status");
+      const documents = await DynamicModel.find({ submittedBy: user._id, submitted: true }, "status");
 
       totalSubmission += documents.length;
 
