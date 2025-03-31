@@ -18,6 +18,46 @@ import {
 } from "../utils/mailer.utils.js";
 import mongoose from "mongoose";
 
+const getDocumentCountOfDepartments = async (user, tableNames) => {
+  let totalSubmission = 0;
+  let rejectedCount = 0;
+  let pendingCount = 0;
+  let acceptedCount = 0;
+
+  await Promise.all(
+    tableNames.map(async (tableName) => {
+      // Sanitize table name (replace spaces with underscores)
+      const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+      const DynamicModel = mongoose.models[sanitizedTableName];
+
+      if (!DynamicModel) return; // Skip if model not found
+
+      // Fetch all documents in a single query
+      const documents = await DynamicModel.find({ submittedBy: user._id }, "status");
+
+      totalSubmission += documents.length;
+
+      documents.forEach((doc) => {
+        if (doc.status === "approved") {
+          acceptedCount += 1;
+        } else if (doc.status === "rejected") {
+          rejectedCount += 1;
+        } else if (["pending", "requestedForApproval", "requestedForRejection"].includes(doc.status)) {
+          pendingCount += 1;
+        }
+      });
+    })
+  );
+
+  return {
+    ...user.toObject(),
+    totalSubmission,
+    acceptedCount,
+    rejectedCount,
+    pendingCount,
+  };
+};
+
 export const createUser = expressAsyncHandler(async (req, res) => {
   try {
     const { name, email, phone, department, college } = req.body;
@@ -241,7 +281,7 @@ export const getDepartmentById = expressAsyncHandler(async (req, res) => {
     if (!userId) {
       return sendError(res, constants.VALIDATION_ERROR, "User ID is required");
     }
-    const user = await User.findById(userId).select("-password -tempPassword");
+    let user = await User.findById(userId).select("-password -tempPassword");
 
     if (req.moderator && !req.moderator.department.includes(user.department)) {
       return sendError(
@@ -250,6 +290,12 @@ export const getDepartmentById = expressAsyncHandler(async (req, res) => {
         "You are not authorized to view this user"
       );
     }
+
+    const allTables = await SchemaMeta.find({}).select("tableName");
+    const tableNames = allTables.map((table) => table.tableName);
+
+    user = await getDocumentCountOfDepartments(user, tableNames);
+
     return sendSuccess(
       res,
       constants.OK,
@@ -260,46 +306,6 @@ export const getDepartmentById = expressAsyncHandler(async (req, res) => {
     return sendServerError(res, error);
   }
 });
-
-const getDocumentCountOfDepartments = async (user, tableNames) => {
-  let totalSubmission = 0;
-  let rejectedCount = 0;
-  let pendingCount = 0;
-  let acceptedCount = 0;
-
-  await Promise.all(
-    tableNames.map(async (tableName) => {
-      // Sanitize table name (replace spaces with underscores)
-      const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
-      const DynamicModel = mongoose.models[sanitizedTableName];
-
-      if (!DynamicModel) return; // Skip if model not found
-
-      // Fetch all documents in a single query
-      const documents = await DynamicModel.find({ submittedBy: user._id }, "status");
-
-      totalSubmission += documents.length;
-
-      documents.forEach((doc) => {
-        if (doc.status === "approved") {
-          acceptedCount += 1;
-        } else if (doc.status === "rejected") {
-          rejectedCount += 1;
-        } else if (["pending", "requestedForApproval", "requestedForRejection"].includes(doc.status)) {
-          pendingCount += 1;
-        }
-      });
-    })
-  );
-
-  return {
-    ...user.toObject(),
-    totalSubmission,
-    acceptedCount,
-    rejectedCount,
-    pendingCount,
-  };
-};
 
 export const getAllDepartments = expressAsyncHandler(async (req, res) => {
   try {
@@ -321,6 +327,27 @@ export const getAllDepartments = expressAsyncHandler(async (req, res) => {
     return sendServerError(res, error);
   }
 });
+
+export const getAllDepartmentsByModerator = expressAsyncHandler(async (req, res) => {
+  try {
+    let users = await User.find({ department: { $in: req.moderator.department} }).select("-password -tempPassword");
+
+    if (!users || users.length === 0) {
+      return sendSuccess(res, constants.OK, "No departments found", []);
+    }
+    
+    const allTables = await SchemaMeta.find({}).select("tableName");
+    const tableNames = allTables.map((table) => table.tableName);
+
+    const updatedUsers = await Promise.all(
+      users.map(async (user) => await getDocumentCountOfDepartments(user, tableNames))
+    );
+
+    return sendSuccess(res, constants.OK, "Users retrieved successfully", updatedUsers);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+})
 
 export const updateUserDetails = expressAsyncHandler(async (req, res) => {
   try {
