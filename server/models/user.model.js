@@ -44,22 +44,6 @@ const userSchema = new Schema(
     tempPassword: {
       type: String,
     },
-    totalSubmission: {
-      type: Number,
-      default: 0,
-    },
-    pendingCount: {
-      type: Number,
-      default: 0,
-    },
-    acceptedCount: {
-      type: Number,
-      default: 0,
-    },
-    rejectedCount: {
-      type: Number,
-      default: 0,
-    },
     status: {
       type: String,
       enum: ["pending", "verified"],

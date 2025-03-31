@@ -6,10 +6,10 @@ import { config } from "../constants.js";
 const moderatorSchema = new Schema(
   {
     name: {
-        type: String,
-        required: [true, "Name is required"],
-        trim: true,
-      },
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+    },
     email: {
       type: String,
       unique: true,
@@ -27,21 +27,23 @@ const moderatorSchema = new Schema(
       trim: true,
     },
     profileImage: {
-        type: String,
-        default: "https://cdn-icons-png.flaticon.com/512/9131/9131529.png",
-        trim: true,
+      type: String,
+      default: "https://cdn-icons-png.flaticon.com/512/9131/9131529.png",
+      trim: true,
     },
     department: {
-        type: [String],
-        required: [true, "Department is required"],
-        trim: true,
+      type: [String],
+      required: [true, "Department is required"],
+      trim: true,
     },
-    college: [{
+    college: [
+      {
         type: String,
         required: [true, "College is required"],
         enum: ["IEMN", "IEMS", "UEMJ"],
         trim: true,
-    }],
+      },
+    ],
     password: {
       type: String,
       trim: true,
@@ -49,23 +51,15 @@ const moderatorSchema = new Schema(
     tempPassword: {
       type: String,
     },
-    pendingRequestCount:{
-        type: Number,
-        default: 0,
+    status: {
+      type: String,
+      enum: ["pending", "verified"],
+      default: "pending",
     },
-    acceptedRequestCount:{
-        type: Number,
-        default: 0,
+    goAsPerModerator: {
+      type: Boolean,
+      default: false,
     },
-    rejectedRequestCount:{
-        type: Number,
-        default: 0,
-    },
-    status:{
-        type: String,
-        enum: ["pending", "verified"],
-        default: "pending",
-    }
   },
   { timestamps: true }
 );

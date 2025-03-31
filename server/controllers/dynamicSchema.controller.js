@@ -92,6 +92,11 @@ export const createSchema = expressAsyncHandler(async (req, res) => {
       ref: "User",
     };
 
+    schemaDefinition["reviewedModerator"] = {
+      type: "ObjectId",
+      ref: "Moderator",
+    }
+
     if (!schemaDefinition["college"]) {
       schemaDefinition["college"] = {
         type: "String",

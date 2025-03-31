@@ -356,7 +356,7 @@ export const verifyDocumentByModerator = expressAsyncHandler(
 
       const document = await DynamicModel.findOneAndUpdate(
         { _id: documentId },
-        { status: status, moderatorComment: comment },
+        { status: status, moderatorComment: comment, reviewedModerator: req.moderator._id },
         { new: true }
       );
 
@@ -580,3 +580,39 @@ export const uploadDocumentFile = expressAsyncHandler(async (req, res) => {
     return sendServerError(res, error);
   }
 });
+
+export const acceptManyDocumentBySuperAdmin = expressAsyncHandler(async (req, res) => {
+  try {
+    const { tableName, department } = req.body;
+
+    if (!tableName || !department) {
+      return sendError(res, constants.VALIDATION_ERROR, "Table name and department are required");
+    }
+
+    const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+    const DynamicModel = mongoose.models[sanitizedTableName];
+
+    if (!DynamicModel) {
+      return sendError(res, constants.VALIDATION_ERROR, "Model not found");
+    }
+
+    const documents = await DynamicModel.find({ department, status: "requestedForApproval" }).populate("reviewedModerator", "goAsPerModerator")
+
+    const filteredDocuments = documents.filter((doc) => doc.reviewedModerator.goAsPerModerator === true);
+    const documentIds = filteredDocuments.map((doc) => doc._id);
+
+    const updatedDocuments = await DynamicModel.updateMany(
+      { _id: { $in: documentIds } },
+      { status: "approved" },
+      { new: true }
+    );
+
+    if (updatedDocuments.nModified === 0) {
+      return sendError(res, constants.NO_CONTENT, "No documents found to update");
+    }
+
+    return sendSuccess(res, constants.OK, "Documents approved successfully", updatedDocuments);
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+})

@@ -1,5 +1,7 @@
 import Moderator from "../models/moderator.model.js";
 import OTP from "../models/otp.model.js";
+import SchemaMeta from "../models/tableSchema.model.js";
+import mongoose from "mongoose";
 import expressAsyncHandler from "express-async-handler";
 import { constants } from "../constants.js";
 import {
@@ -152,21 +154,71 @@ export const updatePassword = expressAsyncHandler(async (req, res) => {
   }
 });
 
+const getDocumentCountOfModerator = async (moderator, tableNames) => {
+  let pendingRequestCount = 0;
+  let acceptedRequestCount = 0;
+  let rejectedRequestCount = 0;
+  let totalRequestCount = 0;
+
+  await Promise.all(
+    tableNames.map(async (tableName) => {
+      const DynamicModel = mongoose.model(tableName);
+
+      if (!DynamicModel) return;
+
+      const documents = await DynamicModel.find({
+        college: { $in: moderator.college },
+        department: { $in: moderator.department },
+        submitted: true,
+      }, "status");
+
+      totalRequestCount += documents.length;
+
+      documents.forEach((doc) => {
+        if (doc.status === "pending") {
+          pendingRequestCount++;
+        } else if (doc.status === "requestedForApproval") {
+          acceptedRequestCount++;
+        } else if (doc.status === "requestedForRejection") {
+          rejectedRequestCount++;
+        }
+      })
+    })
+  );
+
+  return {
+    ...moderator.toObject(),
+    pendingRequestCount,
+    acceptedRequestCount,
+    rejectedRequestCount,
+    totalRequestCount,
+  };
+};
+
 export const getAllModerators = expressAsyncHandler(async (req, res) => {
   try {
     const moderators = await Moderator.find({}).select(
       "-password -tempPassword"
     );
-
+    
     if (!moderators || moderators.length === 0) {
       return sendSuccess(res, constants.OK, "No moderators found", []);
     }
+
+    const allTables = await SchemaMeta.find({}).select("tableName");
+    const tableNames = allTables.map((table) => table.tableName);
+
+    const moderatorsWithCounts = await Promise.all(
+      moderators.map(async (moderator) =>
+        await getDocumentCountOfModerator(moderator, tableNames)
+      )
+    )
 
     return sendSuccess(
       res,
       constants.OK,
       "Moderators retrieved successfully",
-      moderators
+      moderatorsWithCounts
     );
   } catch (error) {
     return sendServerError(res, error);
@@ -199,7 +251,7 @@ export const deleteModerator = expressAsyncHandler(async (req, res) => {
 export const updateModerator = expressAsyncHandler(async (req, res) => {
   try {
     const { moderatorId } = req.params;
-    const { name, email, phone, department, college } = req.body;
+    const { name, email, phone, department, college, goAsPerModerator } = req.body;
 
     if (!moderatorId) {
       return sendError(
@@ -216,7 +268,7 @@ export const updateModerator = expressAsyncHandler(async (req, res) => {
 
     const updatedModerator = await Moderator.findByIdAndUpdate(
       moderatorId,
-      { name, email, phone, department, college },
+      { name, email, phone, department, college, goAsPerModerator },
       { new: true, runValidators: true }
     );
 
