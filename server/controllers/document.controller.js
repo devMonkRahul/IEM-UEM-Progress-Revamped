@@ -49,22 +49,19 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate, college, department, status } = req.body;
+      const { startDate, endDate, college, status } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
 
       const skip = (pageNumber - 1) * limitNumber;
 
-      if (!tableName || !department) {
-        return sendError(
-          res,
-          constants.VALIDATION_ERROR,
-          "Table name and department are required"
-        );
-      }
+      const allTables = await SchemaMeta.find({}).select("tableName");
+      const tableNames = allTables.map((table) => table.tableName);
 
-      let query = { department };
+      let allDocuments = [];
+
+      let query = {};
       if (startDate && endDate) {
         if (new Date(startDate) > new Date(endDate)) {
           return sendError(
@@ -98,37 +95,38 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
         ];
       }
 
-      // Sanitize table name (replace spaces with underscores)
-      const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+      await Promise.all(
+        tableNames.map(async (tableName) => {
+          const DynamicModel = mongoose.models[tableName];
 
-      const DynamicModel = mongoose.models[sanitizedTableName];
+          if (!DynamicModel) return;
 
-      if (!DynamicModel) {
-        return sendError(res, constants.VALIDATION_ERROR, "Model not found");
-      }
+          const documents = await DynamicModel.find(query)
+            .populate("submittedBy", "name email")
+            .populate("reviewedModerator", "name email")
+            .skip(skip)
+            .limit(limitNumber)
+            .exec();
 
-      // Super Admin can retrieve all submitted documents
-      const documents = await DynamicModel.find(query)
-        .populate("submittedBy", "name email")
-        .populate("reviewedModerator", "name email")
-        .skip(skip)
-        .limit(limitNumber)
-        .exec();
+          const countDocument = await DynamicModel.countDocuments(query);
 
-      const countDocument = await DynamicModel.countDocuments(query);
+          allDocuments.push({
+            tableName,
+            documents,
+            pagination: {
+              currentPage: pageNumber,
+              totalPages: Math.ceil(countDocument / limitNumber),
+              countDocument,
+            },
+          });
+        })
+      );
 
       return sendSuccess(
         res,
         constants.OK,
         "Documents retrieved successfully",
-        {
-          documents,
-          pagination: {
-            currentPage: pageNumber,
-            totalPages: Math.ceil(countDocument / limitNumber),
-            countDocument,
-          },
-        }
+        allDocuments
       );
     } catch (error) {
       return sendServerError(res, error);
@@ -616,7 +614,10 @@ export const verifyManyDocumentBySuperAdmin = expressAsyncHandler(
 
       const documents = await DynamicModel.find({
         department,
-        status: status === "approved" ? "requestedForApproval" : "requestedForRejection",
+        status:
+          status === "approved"
+            ? "requestedForApproval"
+            : "requestedForRejection",
       }).populate("reviewedModerator", "goAsPerModerator");
 
       const filteredDocuments = documents.filter(
