@@ -471,40 +471,31 @@ export const verifyDocumentBySuperAdmin = expressAsyncHandler(
 
 export const finalSubmission = expressAsyncHandler(async (req, res) => {
   try {
-    const { tableName } = req.body;
+    const allTables = await SchemaMeta.find({}).select("tableName");
+    const tableNames = allTables.map((table) => table.tableName);
 
-    if (!tableName) {
-      return sendError(res, constants.VALIDATION_ERROR, "Invalid request Data");
-    }
+    await Promise.all(
+      tableNames.map(async (tableName) => {
+        const DynamicModel = mongoose.models[tableName];
 
-    // Sanitize table name (replace spaces with underscores)
-    const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+        if (!DynamicModel) return;
 
-    const DynamicModel = mongoose.models[sanitizedTableName];
+        const documentIds = await DynamicModel.find({
+          submittedBy: req.user._id,
+          submitted: false,
+        }).select("_id");
 
-    if (!DynamicModel) {
-      return sendError(res, constants.VALIDATION_ERROR, "Model not found");
-    }
+        const documentIdsArray = documentIds.map((doc) => doc._id);
 
-    const documentIds = await DynamicModel.find({
-      submittedBy: req.user._id,
-      submitted: false,
-    }).select("_id");
-
-    const documentIdsArray = documentIds.map((doc) => doc._id);
-
-    const documents = await DynamicModel.updateMany(
-      { _id: { $in: documentIdsArray } },
-      { submitted: true },
-      { new: true }
+        await DynamicModel.updateMany(
+          { _id: { $in: documentIdsArray } },
+          { submitted: true },
+          { new: true }
+        );
+      })
     );
 
-    return sendSuccess(
-      res,
-      constants.OK,
-      "Final Submission successfully",
-      documents
-    );
+    return sendSuccess(res, constants.OK, "Final Submission successfully");
   } catch (error) {
     return sendServerError(res, error);
   }
