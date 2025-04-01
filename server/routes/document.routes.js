@@ -10,6 +10,7 @@ import {
   bulkUpload,
   getAllDocumentsBySuperAdmin,
   uploadDocumentFile,
+  verifyManyDocumentBySuperAdmin,
 } from "../controllers/document.controller.js";
 import {
   verifyUser,
@@ -40,5 +41,7 @@ router.route("/bulkUpload").post(verifyUser, uploadExcel.single("file"), bulkUpl
 router.route("/finalSubmission").post(verifyUser, finalSubmission);
 
 router.route("/uploadDocumentFile").post(verifyUser, uploadPdf.single("file"), uploadDocumentFile);
+
+router.route("/verifyManyDocumentBySuperAdmin").post(verifySuperAdmin, verifyManyDocumentBySuperAdmin);
 
 export default router;

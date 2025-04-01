@@ -10,7 +10,7 @@ import XLSX from "xlsx";
 import fs from "fs";
 import SchemaMeta from "../models/tableSchema.model.js";
 import RawSchemaMeta from "../models/rawTableSchema.model.js";
-import { uploadFile, generateSignedUrl } from "../utils/s3Upload.utils.js"
+import { uploadFile, generateSignedUrl } from "../utils/s3Upload.utils.js";
 
 export const createDocument = expressAsyncHandler(async (req, res) => {
   try {
@@ -49,7 +49,7 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate, college, department } = req.body;
+      const { tableName, startDate, endDate, college, department, status } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
@@ -80,12 +80,23 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
         query["college"] = college;
       }
 
-      query["$or"] = [
-        { status: "requestedForApproval" },
-        { status: "requestedForRejection" },
-        { status: "approved" },
-        { status: "rejected" },
-      ];
+      if (status) {
+        if (["approved", "rejected"].includes(status)) {
+          query["status"] = status;
+        } else {
+          query["$or"] = [
+            { status: "requestedForApproval" },
+            { status: "requestedForRejection" },
+          ];
+        }
+      } else {
+        query["$or"] = [
+          { status: "requestedForApproval" },
+          { status: "requestedForRejection" },
+          { status: "approved" },
+          { status: "rejected" },
+        ];
+      }
 
       // Sanitize table name (replace spaces with underscores)
       const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
@@ -99,6 +110,7 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
       // Super Admin can retrieve all submitted documents
       const documents = await DynamicModel.find(query)
         .populate("submittedBy", "name email")
+        .populate("reviewedModerator", "name email")
         .skip(skip)
         .limit(limitNumber)
         .exec();
@@ -146,12 +158,9 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
 
-    let query = { 
+    let query = {
       submittedBy: req.user?._id,
-      $or: [
-        { status: "rejected" },
-        { submitted: false },
-      ]
+      $or: [{ status: "rejected" }, { submitted: false }],
     };
 
     const documents = await DynamicModel.find(query)
@@ -356,7 +365,11 @@ export const verifyDocumentByModerator = expressAsyncHandler(
 
       const document = await DynamicModel.findOneAndUpdate(
         { _id: documentId },
-        { status: status, moderatorComment: comment, reviewedModerator: req.moderator._id },
+        {
+          status: status,
+          moderatorComment: comment,
+          reviewedModerator: req.moderator._id,
+        },
         { new: true }
       );
 
@@ -581,38 +594,66 @@ export const uploadDocumentFile = expressAsyncHandler(async (req, res) => {
   }
 });
 
-export const acceptManyDocumentBySuperAdmin = expressAsyncHandler(async (req, res) => {
-  try {
-    const { tableName, department } = req.body;
+export const verifyManyDocumentBySuperAdmin = expressAsyncHandler(
+  async (req, res) => {
+    try {
+      const { tableName, department, status } = req.body;
 
-    if (!tableName || !department) {
-      return sendError(res, constants.VALIDATION_ERROR, "Table name and department are required");
+      if (!tableName || !department || !status) {
+        return sendError(
+          res,
+          constants.VALIDATION_ERROR,
+          "Table name, department and status are required"
+        );
+      }
+
+      const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+      const DynamicModel = mongoose.models[sanitizedTableName];
+
+      if (!DynamicModel) {
+        return sendError(res, constants.VALIDATION_ERROR, "Model not found");
+      }
+
+      const documents = await DynamicModel.find({
+        department,
+        status: status === "approved" ? "requestedForApproval" : "requestedForRejection",
+      }).populate("reviewedModerator", "goAsPerModerator");
+
+      const filteredDocuments = documents.filter(
+        (doc) => doc.reviewedModerator.goAsPerModerator === true
+      );
+      const documentIds = filteredDocuments.map((doc) => doc._id);
+
+      if (documentIds.length === 0) {
+        return sendError(
+          res,
+          constants.NO_CONTENT,
+          "No documents found to update"
+        );
+      }
+
+      const updatedDocuments = await DynamicModel.updateMany(
+        { _id: { $in: documentIds } },
+        { status },
+        { new: true }
+      );
+
+      if (updatedDocuments.nModified === 0) {
+        return sendError(
+          res,
+          constants.NO_CONTENT,
+          "No documents found to update"
+        );
+      }
+
+      return sendSuccess(
+        res,
+        constants.OK,
+        "Documents approved successfully",
+        updatedDocuments
+      );
+    } catch (error) {
+      return sendServerError(res, error);
     }
-
-    const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
-    const DynamicModel = mongoose.models[sanitizedTableName];
-
-    if (!DynamicModel) {
-      return sendError(res, constants.VALIDATION_ERROR, "Model not found");
-    }
-
-    const documents = await DynamicModel.find({ department, status: "requestedForApproval" }).populate("reviewedModerator", "goAsPerModerator")
-
-    const filteredDocuments = documents.filter((doc) => doc.reviewedModerator.goAsPerModerator === true);
-    const documentIds = filteredDocuments.map((doc) => doc._id);
-
-    const updatedDocuments = await DynamicModel.updateMany(
-      { _id: { $in: documentIds } },
-      { status: "approved" },
-      { new: true }
-    );
-
-    if (updatedDocuments.nModified === 0) {
-      return sendError(res, constants.NO_CONTENT, "No documents found to update");
-    }
-
-    return sendSuccess(res, constants.OK, "Documents approved successfully", updatedDocuments);
-  } catch (error) {
-    return sendServerError(res, error);
   }
-})
+);

@@ -20,7 +20,7 @@ import {
 
 export const createModerator = expressAsyncHandler(async (req, res) => {
   try {
-    const { name, email, phone, department, college } = req.body;
+    const { name, email, phone, department, college, goAsPerModerator } = req.body;
 
     if (!name || !email || !phone || !department || !college) {
       return sendError(
@@ -60,6 +60,7 @@ export const createModerator = expressAsyncHandler(async (req, res) => {
       department,
       college,
       tempPassword: hashedTempPassword,
+      goAsPerModerator,
     });
 
     const { message, messageHTML } = generatePasswordMessage(
