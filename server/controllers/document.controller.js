@@ -80,6 +80,36 @@ export const editDocument = expressAsyncHandler(async (req, res) => {
   }
 });
 
+export const deleteDocument = expressAsyncHandler(async (req, res) => {
+  try {
+    const { tableName, documentId } = req.body;
+
+    if (!tableName || !documentId) {
+      return sendError(res, constants.VALIDATION_ERROR, "Invalid request Data");
+    }
+
+    // Sanitize table name (replace spaces with underscores)
+    const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+
+    const DynamicModel = mongoose.models[sanitizedTableName];
+
+    if (!DynamicModel) {
+      return sendError(res, constants.VALIDATION_ERROR, "Model not found");
+    }
+
+    const document = await DynamicModel.findByIdAndDelete({ _id: documentId });
+
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Document deleted successfully",
+      document
+    );
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
