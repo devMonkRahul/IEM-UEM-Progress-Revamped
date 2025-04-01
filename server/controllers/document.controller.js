@@ -279,7 +279,7 @@ export const getAllTablesDocumentsBySuperAdmin = expressAsyncHandler(async (req,
   }
 })
 
-export const getGoAsPerModeratorApprovedDocuments = expressAsyncHandler(
+export const getGoAsPerModeratorVerifiedDocuments = expressAsyncHandler(
   async (req, res) => {
     try {
       const { startDate, endDate, college } = req.body;

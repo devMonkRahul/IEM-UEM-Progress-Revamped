@@ -13,7 +13,7 @@ import {
   verifyManyDocumentBySuperAdmin,
   editDocument,
   deleteDocument,
-  getGoAsPerModeratorApprovedDocuments,
+  getGoAsPerModeratorVerifiedDocuments,
   getAllTablesDocumentsBySuperAdmin,
 } from "../controllers/document.controller.js";
 import {
@@ -40,7 +40,9 @@ router
   .route("/verifyDocumentBySuperAdmin")
   .post(verifySuperAdmin, verifyDocumentBySuperAdmin);
 
-router.route("/getGoAsPerModeratorApprovedDocuments").post(verifySuperAdmin, getGoAsPerModeratorApprovedDocuments);
+router.route("/getAllTablesDocumentsBySuperAdmin").post(verifySuperAdmin, getAllTablesDocumentsBySuperAdmin);
+
+router.route("/getGoAsPerModeratorVerifiedDocuments").post(verifySuperAdmin, getGoAsPerModeratorVerifiedDocuments);
 
 router.route("/bulkUpload").post(verifyUser, uploadExcel.single("file"), bulkUpload);
 
