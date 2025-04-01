@@ -389,6 +389,21 @@ export const deleteUser = expressAsyncHandler(async (req, res) => {
     if (!userId) {
       return sendError(res, constants.VALIDATION_ERROR, "User ID is required");
     }
+
+    const allTables = await SchemaMeta.find({}).select("tableName");
+    const tableNames = allTables.map((table) => table.tableName);
+
+    await Promise.all(
+      tableNames.map(async (tableName) => {
+        const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+        const DynamicModel = mongoose.models[sanitizedTableName];
+
+        if (!DynamicModel) return; // Skip if model not found
+
+        await DynamicModel.deleteMany({ submittedBy: userId });
+      })
+    );
+
     const deletedUser = await User.findByIdAndDelete(userId);
     return sendSuccess(res, constants.OK, "User deleted successfully");
   } catch (error) {
