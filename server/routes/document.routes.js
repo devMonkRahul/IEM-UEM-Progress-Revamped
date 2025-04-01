@@ -14,6 +14,7 @@ import {
   editDocument,
   deleteDocument,
   getGoAsPerModeratorApprovedDocuments,
+  getAllTablesDocumentsBySuperAdmin,
 } from "../controllers/document.controller.js";
 import {
   verifyUser,
