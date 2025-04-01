@@ -167,7 +167,7 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
 
           const documents = await DynamicModel.find(query)
             .populate("submittedBy", "name email")
-            .populate("reviewedModerator", "name email")
+            .populate("reviewedModerator", "name email goAsPerModerator")
             .skip(skip)
             .limit(limitNumber)
             .exec();
@@ -192,6 +192,73 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
         "Documents retrieved successfully",
         allDocuments
       );
+    } catch (error) {
+      return sendServerError(res, error);
+    }
+  }
+);
+
+export const getGoAsPerModeratorApprovedDocuments = expressAsyncHandler(
+  async (req, res) => {
+    try {
+      const { startDate, endDate, college } = req.body;
+
+      const allTables = await SchemaMeta.find({}).select("tableName");
+      const tableNames = allTables.map((table) => table.tableName);
+
+      let allDocuments = [];
+
+      let query = {
+        $or: [
+          { status: "requestedForApproval" },
+          { status: "requestedForRejection" },
+          { status: "approved" },
+          { status: "rejected" },
+        ],
+      };
+      if (startDate && endDate) {
+        if (new Date(startDate) > new Date(endDate)) {
+          return sendError(
+            res,
+            constants.VALIDATION_ERROR,
+            "Start date cannot be greater than end date"
+          );
+        }
+        query["createdAt"] = { $gte: startDate, $lte: endDate };
+      }
+
+      if (college) {
+        query["college"] = college;
+      }
+
+      await Promise.all(
+        tableNames.map(async (tableName) => {
+          const DynamicModel = mongoose.models[tableName];
+
+          if (!DynamicModel) return;
+
+          const documents = await DynamicModel.find(query)
+            .populate("submittedBy", "name email")
+            .populate("reviewedModerator", "name email goAsPerModerator")
+            .exec();
+
+          const filteredDocuments = documents.filter(
+            (doc) => doc.reviewedModerator.goAsPerModerator === true
+          );
+
+          allDocuments.push({
+            tableName,
+            documents: filteredDocuments,
+          });
+        })
+      )
+
+      return sendSuccess(
+        res,
+        constants.OK,
+        "Documents retrieved successfully",
+        allDocuments
+      )
     } catch (error) {
       return sendServerError(res, error);
     }

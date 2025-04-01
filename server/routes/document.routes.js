@@ -12,7 +12,8 @@ import {
   uploadDocumentFile,
   verifyManyDocumentBySuperAdmin,
   editDocument,
-  deleteDocument
+  deleteDocument,
+  getGoAsPerModeratorApprovedDocuments,
 } from "../controllers/document.controller.js";
 import {
   verifyUser,
@@ -37,6 +38,8 @@ router
 router
   .route("/verifyDocumentBySuperAdmin")
   .post(verifySuperAdmin, verifyDocumentBySuperAdmin);
+
+router.route("/getGoAsPerModeratorApprovedDocuments").post(verifySuperAdmin, getGoAsPerModeratorApprovedDocuments);
 
 router.route("/bulkUpload").post(verifyUser, uploadExcel.single("file"), bulkUpload);
 
