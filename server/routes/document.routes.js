@@ -11,6 +11,7 @@ import {
   getAllDocumentsBySuperAdmin,
   uploadDocumentFile,
   verifyManyDocumentBySuperAdmin,
+  editDocument
 } from "../controllers/document.controller.js";
 import {
   verifyUser,
@@ -43,5 +44,7 @@ router.route("/finalSubmission").post(verifyUser, finalSubmission);
 router.route("/uploadDocumentFile").post(verifyUser, uploadPdf.single("file"), uploadDocumentFile);
 
 router.route("/verifyManyDocumentBySuperAdmin").post(verifySuperAdmin, verifyManyDocumentBySuperAdmin);
+
+router.route("/editDocument").post(verifyUser, editDocument);
 
 export default router;
