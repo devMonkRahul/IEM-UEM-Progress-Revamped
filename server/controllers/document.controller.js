@@ -12,7 +12,6 @@ import SchemaMeta from "../models/tableSchema.model.js";
 import RawSchemaMeta from "../models/rawTableSchema.model.js";
 import User from "../models/user.model.js";
 import { uploadFile, generateSignedUrl } from "../utils/s3Upload.utils.js";
-import { table } from "console";
 
 export const createDocument = expressAsyncHandler(async (req, res) => {
   try {
@@ -115,23 +114,23 @@ export const deleteDocument = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate, college, department, status } =
-        req.body;
+      const { tableName, startDate, endDate, college } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
-
+      
       const skip = (pageNumber - 1) * limitNumber;
-
+      
       if (!tableName) {
         return sendError(
           res,
           constants.VALIDATION_ERROR,
-          "Table name is required"
+          "Invalid request data"
         );
       }
-
+      
       let query = {};
+      
       if (startDate && endDate) {
         if (new Date(startDate) > new Date(endDate)) {
           return sendError(
@@ -142,45 +141,37 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
         }
         query["createdAt"] = { $gte: startDate, $lte: endDate };
       }
-
-      if (department) {
-        query["department"] = department;
-      }
-
+      
       if (college) {
         query["college"] = college;
       }
-
-      if (status) {
-        if (["approved", "rejected"].includes(status)) {
-          query["status"] = status;
-        } else {
-          query["$or"] = [
-            { status: "requestedForApproval" },
-            { status: "requestedForRejection" },
-          ];
-        }
-      } else {
-        query["$or"] = [
-          { status: "requestedForApproval" },
-          { status: "requestedForRejection" },
-          { status: "approved" },
-          { status: "rejected" },
-        ];
+      
+      query["$or"] = [
+        { status: "requestedForApproval" },
+        { status: "requestedForRejection" },
+        { status: "approved" },
+        { status: "rejected" },
+      ];
+      
+      // Sanitize table name (replace spaces with underscores)
+      const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+      
+      const DynamicModel = mongoose.models[sanitizedTableName];
+      
+      if (!DynamicModel) {
+        return sendError(res, constants.VALIDATION_ERROR, "Model not found");
       }
-      const DynamicModel = mongoose.models[tableName];
-
-      if (!DynamicModel) return;
-
+      
+      // Super Admin can retrieve all submitted documents
       const documents = await DynamicModel.find(query)
         .populate("submittedBy", "name email")
-        .populate("reviewedModerator", "name email goAsPerModerator")
         .skip(skip)
         .limit(limitNumber)
         .exec();
-
+      
+      // Use the same query for counting documents
       const countDocument = await DynamicModel.countDocuments(query);
-
+      
       return sendSuccess(
         res,
         constants.OK,
@@ -336,7 +327,7 @@ export const getGoAsPerModeratorVerifiedDocuments = expressAsyncHandler(
 
 export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
   try {
-    const { tableName } = req.body;
+    const { tableName, startDate, endDate } = req.body;
     const { page = 1, limit = 10 } = req.query;
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
@@ -356,10 +347,20 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
 
-    let query = {
-      submittedBy: req.user?._id,
-      $or: [{ status: "rejected" }, { submitted: false }],
-    };
+    // Create query object
+    let query = { submittedBy: req.user?._id };
+
+    // Add date range filtering if provided
+    if (startDate && endDate) {
+      if (new Date(startDate) > new Date(endDate)) {
+        return sendError(
+          res,
+          constants.VALIDATION_ERROR,
+          "Start date cannot be greater than end date"
+        );
+      }
+      query["createdAt"] = { $gte: startDate, $lte: endDate };
+    }
 
     const documents = await DynamicModel.find(query)
       .skip(skip)
@@ -384,18 +385,18 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsByModerator = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, status, department } = req.body;
+      const { tableName, startDate, endDate } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
 
       const skip = (pageNumber - 1) * limitNumber;
 
-      if (!tableName || !department) {
+      if (!tableName) {
         return sendError(
           res,
           constants.VALIDATION_ERROR,
-          "Table name and department are required"
+          "Invalid request Data"
         );
       }
 
@@ -408,22 +409,27 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
         return sendError(res, constants.VALIDATION_ERROR, "Model not found");
       }
 
-      if (!req.moderator.department.includes(department)) {
-        return sendError(
-          res,
-          constants.VALIDATION_ERROR,
-          "You are not authorized to view documents of this department"
-        );
+      // Check if moderator exists and has college/department info
+      if (!req.moderator || !req.moderator.college || !req.moderator.department) {
+        return sendError(res, constants.UNAUTHORIZED, "Moderator not authenticated or lacks required permissions");
       }
 
-      const moderatorQuery = {
+      let moderatorQuery = {
         college: { $in: req.moderator.college },
-        department,
+        department: { $in: req.moderator.department },
         submitted: true,
       };
 
-      if (status) {
-        moderatorQuery["status"] = status;
+      // Add date range filtering if provided
+      if (startDate && endDate) {
+        if (new Date(startDate) > new Date(endDate)) {
+          return sendError(
+            res,
+            constants.VALIDATION_ERROR,
+            "Start date cannot be greater than end date"
+          );
+        }
+        moderatorQuery["createdAt"] = { $gte: startDate, $lte: endDate };
       }
 
       const documents = await DynamicModel.find(moderatorQuery)
@@ -448,6 +454,7 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
         }
       );
     } catch (error) {
+      console.error("Error in getAllDocumentsByModerator:", error);
       return sendServerError(res, error);
     }
   }
