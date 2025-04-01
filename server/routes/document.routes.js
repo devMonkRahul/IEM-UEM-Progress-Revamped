@@ -14,7 +14,7 @@ import {
   editDocument,
   deleteDocument,
   getGoAsPerModeratorVerifiedDocuments,
-  getAllTablesDocumentsBySuperAdmin,
+  getAllDocumentsByDepartmentBySuperAdmin
 } from "../controllers/document.controller.js";
 import {
   verifyUser,
@@ -40,8 +40,6 @@ router
   .route("/verifyDocumentBySuperAdmin")
   .post(verifySuperAdmin, verifyDocumentBySuperAdmin);
 
-router.route("/getAllTablesDocumentsBySuperAdmin").post(verifySuperAdmin, getAllTablesDocumentsBySuperAdmin);
-
 router.route("/getGoAsPerModeratorVerifiedDocuments").post(verifySuperAdmin, getGoAsPerModeratorVerifiedDocuments);
 
 router.route("/bulkUpload").post(verifyUser, uploadExcel.single("file"), bulkUpload);
@@ -55,5 +53,7 @@ router.route("/verifyManyDocumentBySuperAdmin").post(verifySuperAdmin, verifyMan
 router.route("/editDocument").post(verifyUser, editDocument);
 
 router.route("/deleteDocument").post(verifyUser, deleteDocument);
+
+router.route("/getAllDocumentsByDepartmentBySuperAdmin").post(verifySuperAdmin, getAllDocumentsByDepartmentBySuperAdmin);
 
 export default router;

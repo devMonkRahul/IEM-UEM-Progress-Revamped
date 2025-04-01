@@ -10,7 +10,9 @@ import XLSX from "xlsx";
 import fs from "fs";
 import SchemaMeta from "../models/tableSchema.model.js";
 import RawSchemaMeta from "../models/rawTableSchema.model.js";
+import User from "../models/user.model.js";
 import { uploadFile, generateSignedUrl } from "../utils/s3Upload.utils.js";
+import { table } from "console";
 
 export const createDocument = expressAsyncHandler(async (req, res) => {
   try {
@@ -113,7 +115,8 @@ export const deleteDocument = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate, college, department, status } = req.body;
+      const { tableName, startDate, endDate, college, department, status } =
+        req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
@@ -121,7 +124,11 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
       const skip = (pageNumber - 1) * limitNumber;
 
       if (!tableName) {
-        return sendError(res, constants.VALIDATION_ERROR, "Table name is required");
+        return sendError(
+          res,
+          constants.VALIDATION_ERROR,
+          "Table name is required"
+        );
       }
 
       let query = {};
@@ -161,18 +168,18 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
           { status: "rejected" },
         ];
       }
-          const DynamicModel = mongoose.models[tableName];
+      const DynamicModel = mongoose.models[tableName];
 
-          if (!DynamicModel) return;
+      if (!DynamicModel) return;
 
-          const documents = await DynamicModel.find(query)
-            .populate("submittedBy", "name email")
-            .populate("reviewedModerator", "name email goAsPerModerator")
-            .skip(skip)
-            .limit(limitNumber)
-            .exec();
+      const documents = await DynamicModel.find(query)
+        .populate("submittedBy", "name email")
+        .populate("reviewedModerator", "name email goAsPerModerator")
+        .skip(skip)
+        .limit(limitNumber)
+        .exec();
 
-          const countDocument = await DynamicModel.countDocuments(query);
+      const countDocument = await DynamicModel.countDocuments(query);
 
       return sendSuccess(
         res,
@@ -193,91 +200,72 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   }
 );
 
-export const getAllTablesDocumentsBySuperAdmin = expressAsyncHandler(async (req, res) => {
-  try {
-    const { startDate, endDate, college, status } = req.body;
-    const { page = 1, limit = 10 } = req.query;
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
-
-    const skip = (pageNumber - 1) * limitNumber;
-
-    const allTables = await SchemaMeta.find({}).select("tableName");
-    const tableNames = allTables.map((table) => table.tableName);
-
-    let allDocuments = [];
-
-    let query = {};
-    if (startDate && endDate) {
-      if (new Date(startDate) > new Date(endDate)) {
+export const getAllDocumentsByDepartmentBySuperAdmin = expressAsyncHandler(
+  async (req, res) => {
+    try {
+      const { college } = req.body;
+      if (!college)
         return sendError(
           res,
           constants.VALIDATION_ERROR,
-          "Start date cannot be greater than end date"
+          "College is required"
         );
-      }
-      query["createdAt"] = { $gte: startDate, $lte: endDate };
+
+      const allUsers = await User.find({ college }).select(
+        "department college"
+      );
+      const allDepartments = allUsers.map((user) => user.department);
+      const allTables = await SchemaMeta.find({}).select("tableName");
+      const tableNames = allTables.map((table) => table.tableName);
+
+      let allDocuments = [];
+
+      await Promise.all(
+        allDepartments.map(async (department) => {
+          let pendingCount = 0;
+          let approvedCount = 0;
+          let rejectedCount = 0;
+
+          await Promise.all(
+            tableNames.map(async (tableName) => {
+              const DynamicModel = mongoose.models[tableName];
+              if (!DynamicModel) return;
+              const documents = await DynamicModel.find({ department });
+              documents.map((document) => {
+                if (
+                  document.status === "requestedForApproval" ||
+                  document.status === "requestedForRejection"
+                ) {
+                  pendingCount++;
+                } else if (document.status === "approved") {
+                  approvedCount++;
+                } else if (document.status === "rejected") {
+                  rejectedCount++;
+                }
+              });
+            })
+          );
+
+          allDocuments.push({
+            department,
+            pendingCount,
+            approvedCount,
+            rejectedCount,
+          });
+        })
+      );
+
+      return sendSuccess(
+        res,
+        constants.OK,
+        "Documents retrieved successfully",
+        allDocuments
+      );
+    } catch (error) {
+      return sendServerError(res, error);
     }
-
-    if (college) {
-      query["college"] = college;
-    }
-
-    if (status) {
-      if (["approved", "rejected"].includes(status)) {
-        query["status"] = status;
-      } else {
-        query["$or"] = [
-          { status: "requestedForApproval" },
-          { status: "requestedForRejection" },
-        ];
-      }
-    } else {
-      query["$or"] = [
-        { status: "requestedForApproval" },
-        { status: "requestedForRejection" },
-        { status: "approved" },
-        { status: "rejected" },
-      ];
-    }
-
-    await Promise.all(
-      tableNames.map(async (tableName) => {
-        const DynamicModel = mongoose.models[tableName];
-
-        if (!DynamicModel) return;
-
-        const documents = await DynamicModel.find(query)
-          .populate("submittedBy", "name email")
-          .populate("reviewedModerator", "name email goAsPerModerator")
-          .skip(skip)
-          .limit(limitNumber)
-          .exec();
-
-        const countDocument = await DynamicModel.countDocuments(query);
-
-        allDocuments.push({
-          tableName,
-          documents,
-          pagination: {
-            currentPage: pageNumber,
-            totalPages: Math.ceil(countDocument / limitNumber),
-            countDocument,
-          },
-        });
-      })
-    );
-
-    return sendSuccess(
-      res,
-      constants.OK,
-      "Documents retrieved successfully",
-      allDocuments
-    );
-  } catch (error) {
-    return sendServerError(res, error);
   }
-})
+);
 
 export const getGoAsPerModeratorVerifiedDocuments = expressAsyncHandler(
   async (req, res) => {
@@ -332,14 +320,14 @@ export const getGoAsPerModeratorVerifiedDocuments = expressAsyncHandler(
             documents: filteredDocuments,
           });
         })
-      )
+      );
 
       return sendSuccess(
         res,
         constants.OK,
         "Documents retrieved successfully",
         allDocuments
-      )
+      );
     } catch (error) {
       return sendServerError(res, error);
     }
