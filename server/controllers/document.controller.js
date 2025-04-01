@@ -46,10 +46,45 @@ export const createDocument = expressAsyncHandler(async (req, res) => {
   }
 });
 
+export const editDocument = expressAsyncHandler(async (req, res) => {
+  try {
+    const { tableName, documentId, data } = req.body;
+
+    if (!tableName || !documentId || !data) {
+      return sendError(res, constants.VALIDATION_ERROR, "Invalid request Data");
+    }
+
+    // Sanitize table name (replace spaces with underscores)
+    const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+
+    const DynamicModel = mongoose.models[sanitizedTableName];
+
+    if (!DynamicModel) {
+      return sendError(res, constants.VALIDATION_ERROR, "Model not found");
+    }
+
+    const document = await DynamicModel.findOneAndUpdate(
+      { _id: documentId },
+      data,
+      { new: true }
+    );
+
+    return sendSuccess(
+      res,
+      constants.OK,
+      "Document updated successfully",
+      document
+    );
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate, college, department, status } = req.body;
+      const { tableName, startDate, endDate, college, department, status } =
+        req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
@@ -616,7 +651,10 @@ export const verifyManyDocumentBySuperAdmin = expressAsyncHandler(
 
       const documents = await DynamicModel.find({
         department,
-        status: status === "approved" ? "requestedForApproval" : "requestedForRejection",
+        status:
+          status === "approved"
+            ? "requestedForApproval"
+            : "requestedForRejection",
       }).populate("reviewedModerator", "goAsPerModerator");
 
       const filteredDocuments = documents.filter(
