@@ -70,7 +70,7 @@ export const editDocument = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.NO_CONTENT, "Document not found");
     }
 
-    if (!doc.status !== "rejected") {
+    if (doc.status !== "rejected") {
       return sendError(
         res,
         constants.FORBIDDEN,
