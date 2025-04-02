@@ -114,23 +114,23 @@ export const deleteDocument = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate, college } = req.body;
+      const { tableName, startDate, endDate, college, status, department } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
-      
+
       const skip = (pageNumber - 1) * limitNumber;
-      
+
       if (!tableName) {
         return sendError(
           res,
           constants.VALIDATION_ERROR,
-          "Invalid request data"
+          "Table name is required"
         );
       }
-      
+
       let query = {};
-      
+
       if (startDate && endDate) {
         if (new Date(startDate) > new Date(endDate)) {
           return sendError(
@@ -141,37 +141,53 @@ export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
         }
         query["createdAt"] = { $gte: startDate, $lte: endDate };
       }
-      
+
       if (college) {
         query["college"] = college;
       }
-      
-      query["$or"] = [
-        { status: "requestedForApproval" },
-        { status: "requestedForRejection" },
-        { status: "approved" },
-        { status: "rejected" },
-      ];
-      
+
+      if (department) {
+        query["department"] = department;
+      }
+
+      if (status) {
+        if (["approved", "rejected"].includes(status)) {
+          query["status"] = status;
+        } else {
+          query["$or"] = [
+            { status: "requestedForApproval" },
+            { status: "requestedForRejection" },
+          ];
+        }
+      } else {
+        query["$or"] = [
+          { status: "requestedForApproval" },
+          { status: "requestedForRejection" },
+          { status: "approved" },
+          { status: "rejected" },
+        ];
+      }
+
       // Sanitize table name (replace spaces with underscores)
       const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
-      
+
       const DynamicModel = mongoose.models[sanitizedTableName];
-      
+
       if (!DynamicModel) {
         return sendError(res, constants.VALIDATION_ERROR, "Model not found");
       }
-      
+
       // Super Admin can retrieve all submitted documents
       const documents = await DynamicModel.find(query)
         .populate("submittedBy", "name email")
+        .populate("reviewedModerator", "name email goAsPerModerator")
         .skip(skip)
         .limit(limitNumber)
         .exec();
-      
+
       // Use the same query for counting documents
       const countDocument = await DynamicModel.countDocuments(query);
-      
+
       return sendSuccess(
         res,
         constants.OK,
@@ -348,7 +364,14 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
     }
 
     // Create query object
-    let query = { submittedBy: req.user?._id };
+    let query = {
+      submittedBy: req.user?._id,
+      $or: [
+        { submitted: false },
+        { status: "rejected" },
+        { status: "approved" },
+      ],
+    };
 
     // Add date range filtering if provided
     if (startDate && endDate) {
@@ -385,7 +408,7 @@ export const getAllDocumentsByUser = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsByModerator = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate } = req.body;
+      const { tableName, startDate, endDate, status, department } = req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
@@ -396,7 +419,15 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
         return sendError(
           res,
           constants.VALIDATION_ERROR,
-          "Invalid request Data"
+          "Table name is required"
+        );
+      }
+
+      if (!req.moderator.department.includes(department)) {
+        return sendError(
+          res,
+          constants.VALIDATION_ERROR,
+          "You are not authorized to view this department's documents"
         );
       }
 
@@ -410,15 +441,35 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
       }
 
       // Check if moderator exists and has college/department info
-      if (!req.moderator || !req.moderator.college || !req.moderator.department) {
-        return sendError(res, constants.UNAUTHORIZED, "Moderator not authenticated or lacks required permissions");
+      if (
+        !req.moderator ||
+        !req.moderator.college ||
+        !req.moderator.department
+      ) {
+        return sendError(
+          res,
+          constants.UNAUTHORIZED,
+          "Moderator not authenticated or lacks required permissions"
+        );
       }
 
       let moderatorQuery = {
         college: { $in: req.moderator.college },
-        department: { $in: req.moderator.department },
+        
         submitted: true,
       };
+
+      if (status) {
+        if (!["approved", "rejected"].includes(status)) {
+          moderatorQuery["status"] = status;
+        }
+      }
+
+      if (department) {
+        moderatorQuery["department"] = department;
+      } else {
+        moderatorQuery["department"] = { $in: req.moderator.department }
+      }
 
       // Add date range filtering if provided
       if (startDate && endDate) {
