@@ -64,9 +64,23 @@ export const editDocument = expressAsyncHandler(async (req, res) => {
       return sendError(res, constants.VALIDATION_ERROR, "Model not found");
     }
 
+    const doc = await DynamicModel.findById(documentId);
+
+    if (!doc) {
+      return sendError(res, constants.NO_CONTENT, "Document not found");
+    }
+
+    if (!doc.status !== "rejected") {
+      return sendError(
+        res,
+        constants.FORBIDDEN,
+        "Document is not in a state to be edited"
+      );
+    }
+
     const document = await DynamicModel.findOneAndUpdate(
       { _id: documentId },
-      data,
+      { ...data, status: "pending", submitted: false },
       { new: true }
     );
 
@@ -114,7 +128,8 @@ export const deleteDocument = expressAsyncHandler(async (req, res) => {
 export const getAllDocumentsBySuperAdmin = expressAsyncHandler(
   async (req, res) => {
     try {
-      const { tableName, startDate, endDate, college, status, department } = req.body;
+      const { tableName, startDate, endDate, college, status, department } =
+        req.body;
       const { page = 1, limit = 10 } = req.query;
       const pageNumber = parseInt(page, 10);
       const limitNumber = parseInt(limit, 10);
@@ -455,7 +470,7 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
 
       let moderatorQuery = {
         college: { $in: req.moderator.college },
-        
+
         submitted: true,
       };
 
@@ -468,7 +483,7 @@ export const getAllDocumentsByModerator = expressAsyncHandler(
       if (department) {
         moderatorQuery["department"] = department;
       } else {
-        moderatorQuery["department"] = { $in: req.moderator.department }
+        moderatorQuery["department"] = { $in: req.moderator.department };
       }
 
       // Add date range filtering if provided
@@ -693,6 +708,57 @@ export const verifyDocumentBySuperAdmin = expressAsyncHandler(
   }
 );
 
+export const preViewFinalSubmission = expressAsyncHandler(async (req, res) => {
+  try {
+    const { tableName } = req.body;
+    const { page = 1, limit = 10 } = req.query;
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+
+    const skip = (pageNumber - 1) * limitNumber;
+
+    if (!tableName) {
+      return sendError(
+        res,
+        constants.VALIDATION_ERROR,
+        "Table name is required"
+      );
+    }
+
+    // Sanitize table name (replace spaces with underscores)
+    const sanitizedTableName = tableName.replace(/\s+/g, "_").toLowerCase();
+
+    const DynamicModel = mongoose.models[sanitizedTableName];
+
+    if (!DynamicModel) {
+      return sendError(res, constants.VALIDATION_ERROR, "Model not found");
+    }
+
+    const query = {
+      submittedBy: req.user._id,
+      submitted: false,
+    };
+
+    const documents = await DynamicModel.find(query)
+      .skip(skip)
+      .limit(limitNumber)
+      .exec();
+
+    const countDocument = await DynamicModel.countDocuments(query);
+
+    return sendSuccess(res, constants.OK, "Documents retrieved successfully", {
+      documents,
+      pagination: {
+        currentPage: pageNumber,
+        totalPages: Math.ceil(countDocument / limitNumber),
+        countDocument,
+      },
+    });
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+});
+
 export const finalSubmission = expressAsyncHandler(async (req, res) => {
   try {
     const allTables = await SchemaMeta.find({}).select("tableName");
@@ -773,6 +839,7 @@ export const bulkUpload = expressAsyncHandler(async (req, res) => {
           "department",
           "moderatorComment",
           "superAdminComment",
+          "reviewedModerator",
         ].includes(field)
     );
 

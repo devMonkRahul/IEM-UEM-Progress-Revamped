@@ -14,7 +14,8 @@ import {
   editDocument,
   deleteDocument,
   getGoAsPerModeratorVerifiedDocuments,
-  getAllDocumentsByDepartmentBySuperAdmin
+  getAllDocumentsByDepartmentBySuperAdmin,
+  preViewFinalSubmission,
 } from "../controllers/document.controller.js";
 import {
   verifyUser,
@@ -43,6 +44,8 @@ router
 router.route("/getGoAsPerModeratorVerifiedDocuments").post(verifySuperAdmin, getGoAsPerModeratorVerifiedDocuments);
 
 router.route("/bulkUpload").post(verifyUser, uploadExcel.single("file"), bulkUpload);
+
+router.route("/preViewFinalSubmission").post(verifyUser, preViewFinalSubmission);
 
 router.route("/finalSubmission").post(verifyUser, finalSubmission);
 
