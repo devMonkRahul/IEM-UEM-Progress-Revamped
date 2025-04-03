@@ -12,6 +12,8 @@ import SchemaMeta from "../models/tableSchema.model.js";
 import RawSchemaMeta from "../models/rawTableSchema.model.js";
 import User from "../models/user.model.js";
 import { uploadFile, generateSignedUrl } from "../utils/s3Upload.utils.js";
+import dotenv from 'dotenv';
+dotenv.config();
 
 export const createDocument = expressAsyncHandler(async (req, res) => {
   try {
